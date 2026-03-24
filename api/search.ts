@@ -5,19 +5,30 @@
 
 import { SearchQuery, SearchResponse } from '../src/lib/types';
 import { searchDatasets } from './supabase.js';
-import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, parseRequestBody } from './utils.js';
+import {
+  createErrorResponse,
+  getErrorMessage,
+  logApiError,
+  logApiInfo,
+  parseRequestBody,
+  sendJson,
+  sendOptions,
+} from './utils.js';
 
-export default async function handler(req: any) {
+export default async function handler(req: any, res: any) {
   const requestId = req.headers['x-request-id'] || `req_${Date.now()}`;
   const route = '/api/search';
+  const origin = req.headers?.origin;
 
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders(req.headers.origin) });
+    sendOptions(res, origin);
+    return;
   }
 
   if (req.method !== 'POST') {
     const { error, status } = createErrorResponse('METHOD_NOT_ALLOWED', 'Only POST allowed', 405, requestId);
-    return new Response(JSON.stringify(error), { status, headers: corsHeaders(req.headers.origin) });
+    sendJson(res, status, error, origin);
+    return;
   }
 
   try {
@@ -27,7 +38,8 @@ export default async function handler(req: any) {
 
     if (!body.intent || typeof body.intent !== 'string') {
       const { error, status } = createErrorResponse('INVALID_REQUEST', 'Missing or invalid intent field', 400, requestId);
-      return new Response(JSON.stringify(error), { status, headers: corsHeaders(req.headers.origin) });
+      sendJson(res, status, error, origin);
+      return;
     }
 
     // Simple keyword extraction from intent
@@ -66,13 +78,8 @@ export default async function handler(req: any) {
       extra: { duration_ms: Date.now() - startedAt, total, datasets: datasets.length },
     });
 
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders(req.headers.origin),
-      },
-    });
+    sendJson(res, 200, response, origin);
+    return;
   } catch (error: any) {
     logApiError({
       requestId,
@@ -87,6 +94,7 @@ export default async function handler(req: any) {
       500,
       requestId
     );
-    return new Response(JSON.stringify(errResponse), { status, headers: corsHeaders(req.headers.origin) });
+    sendJson(res, status, errResponse, origin);
+    return;
   }
 }

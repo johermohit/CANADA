@@ -100,6 +100,26 @@ export function corsHeaders(origin?: string) {
   };
 }
 
+export function applyCors(res: any, origin?: string) {
+  const headers = corsHeaders(origin);
+  Object.entries(headers).forEach(([key, value]) => {
+    res.setHeader(key, value);
+  });
+}
+
+export function sendJson(res: any, status: number, payload: unknown, origin?: string) {
+  applyCors(res, origin);
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(payload));
+}
+
+export function sendOptions(res: any, origin?: string) {
+  applyCors(res, origin);
+  res.statusCode = 204;
+  res.end();
+}
+
 // Zod-like schema validation (lightweight alternative)
 export function validateObject<T>(
   data: unknown,

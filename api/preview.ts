@@ -4,7 +4,16 @@
  */
 
 import { PreviewRequest, PreviewResponse } from '../src/lib/types';
-import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, parseRequestBody, validateEnv } from './utils.js';
+import {
+  createErrorResponse,
+  getErrorMessage,
+  logApiError,
+  logApiInfo,
+  parseRequestBody,
+  sendJson,
+  sendOptions,
+  validateEnv,
+} from './utils.js';
 
 const PREVIEWABLE_FORMATS = ['CSV', 'JSON', 'GEOJSON'];
 const CKAN_TIMEOUT_MS = 5000;
@@ -40,17 +49,20 @@ async function fetchCKANPreview(resourceId: string, limit: number) {
   }
 }
 
-export default async function handler(req: any) {
+export default async function handler(req: any, res: any) {
   const requestId = req.headers['x-request-id'] || `req_${Date.now()}`;
   const route = '/api/preview';
+  const origin = req.headers?.origin;
 
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders(req.headers.origin) });
+    sendOptions(res, origin);
+    return;
   }
 
   if (req.method !== 'POST') {
     const { error, status } = createErrorResponse('METHOD_NOT_ALLOWED', 'Only POST allowed', 405, requestId);
-    return new Response(JSON.stringify(error), { status, headers: corsHeaders(req.headers.origin) });
+    sendJson(res, status, error, origin);
+    return;
   }
 
   try {
@@ -66,7 +78,8 @@ export default async function handler(req: any) {
         400,
         requestId
       );
-      return new Response(JSON.stringify(error), { status, headers: corsHeaders(req.headers.origin) });
+      sendJson(res, status, error, origin);
+      return;
     }
 
     // This would be more complete with direct resource lookup,
@@ -99,13 +112,8 @@ export default async function handler(req: any) {
       extra: { duration_ms: Date.now() - startedAt, resource_id, limit },
     });
 
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders(req.headers.origin),
-      },
-    });
+    sendJson(res, 200, response, origin);
+    return;
   } catch (error: any) {
     if (error.name === 'AbortError') {
       logApiError({
@@ -121,10 +129,8 @@ export default async function handler(req: any) {
         504,
         requestId
       );
-      return new Response(JSON.stringify(errResponse), {
-        status,
-        headers: corsHeaders(req.headers.origin),
-      });
+      sendJson(res, status, errResponse, origin);
+      return;
     }
 
     // Return graceful fallback
@@ -141,12 +147,7 @@ export default async function handler(req: any) {
       fallback_url: 'https://open.canada.ca/data',
     };
 
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders(req.headers.origin),
-      },
-    });
+    sendJson(res, 200, response, origin);
+    return;
   }
 }
