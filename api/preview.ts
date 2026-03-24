@@ -4,8 +4,7 @@
  */
 
 import { PreviewRequest, PreviewResponse } from '../src/lib/types';
-import { getDataset } from './supabase';
-import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, validateEnv } from './utils';
+import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, validateEnv } from './utils.js';
 
 const PREVIEWABLE_FORMATS = ['CSV', 'JSON', 'GEOJSON'];
 const CKAN_TIMEOUT_MS = 5000;

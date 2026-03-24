@@ -4,8 +4,8 @@
  */
 
 import { SearchQuery, SearchResponse } from '../src/lib/types';
-import { searchDatasets, getOrganizations, getAvailableFormats } from './supabase';
-import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo } from './utils';
+import { searchDatasets, getOrganizations, getAvailableFormats } from './supabase.js';
+import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo } from './utils.js';
 
 export default async function handler(req: any) {
   const requestId = req.headers['x-request-id'] || `req_${Date.now()}`;

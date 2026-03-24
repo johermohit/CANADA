@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { validateEnv } from './utils';
+import { validateEnv } from './utils.js';
 
 let supabaseInstance: ReturnType<typeof createClient> | null = null;
 

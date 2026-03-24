@@ -5,8 +5,8 @@
  */
 
 import { OrchestrateRequest, OrchestrateResponse, FilterState } from '../src/lib/types';
-import { searchDatasets, getOrganizations, getAvailableFormats } from './supabase';
-import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo } from './utils';
+import { searchDatasets, getOrganizations, getAvailableFormats } from './supabase.js';
+import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo } from './utils.js';
 
 // Simple intent parser (can be replaced with LLM call)
 function parseIntent(prompt: string): FilterState {
