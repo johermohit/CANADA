@@ -1,0 +1,16 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useDiscoveryStore } from '@/lib/store';
+import { FileText, Calendar, Building2, ChevronDown } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import clsx from 'clsx';
+export const DatasetCard = ({ dataset, isSelected }) => {
+    const selectDataset = useDiscoveryStore((state) => state.selectDataset);
+    const selectedDatasetId = useDiscoveryStore((state) => state.selectedDatasetId);
+    const isActive = selectedDatasetId === dataset.id;
+    const formatBadges = dataset.formats || [];
+    const recencyText = formatDistanceToNow(new Date(dataset.metadata_modified), {
+        addSuffix: true,
+    });
+    return (_jsxs("div", { className: clsx('card p-4 cursor-pointer transition-all animate-slide-up', isActive && 'ring-2 ring-primary-500 shadow-card-hover'), onClick: () => selectDataset(isActive ? null : dataset.id), children: [_jsxs("div", { className: "flex items-start justify-between gap-3 mb-3", children: [_jsx("div", { className: "flex-1 min-w-0", children: _jsx("h3", { className: "text-lg font-semibold text-gray-900 dark:text-gray-50 line-clamp-2 hover:text-primary-600 dark:hover:text-primary-400", children: dataset.title }) }), _jsx(ChevronDown, { className: clsx('w-5 h-5 text-gray-400 transition-transform flex-shrink-0', isActive && 'rotate-180') })] }), dataset.description && (_jsx("p", { className: "text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3", children: dataset.description })), _jsxs("div", { className: "flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500 mb-3", children: [_jsxs("div", { className: "flex items-center gap-1", children: [_jsx(FileText, { className: "w-4 h-4" }), _jsxs("span", { children: [dataset.resource_count, " resource", dataset.resource_count !== 1 ? 's' : ''] })] }), _jsxs("div", { className: "flex items-center gap-1", children: [_jsx(Calendar, { className: "w-4 h-4" }), _jsx("span", { children: recencyText })] })] }), formatBadges.length > 0 && (_jsxs("div", { className: "flex items-center gap-2 flex-wrap mb-3", children: [_jsx("span", { className: "text-xs font-medium text-gray-500 dark:text-gray-400", children: "Available in:" }), formatBadges.slice(0, 4).map((fmt) => (_jsx("span", { className: "badge-primary text-xs", children: fmt }, fmt))), formatBadges.length > 4 && (_jsxs("span", { className: "text-xs text-gray-500 dark:text-gray-400", children: ["+", formatBadges.length - 4] }))] })), dataset.organization && (_jsxs("div", { className: "flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-800", children: [_jsx(Building2, { className: "w-4 h-4 text-gray-400" }), _jsx("span", { className: "text-xs font-medium text-gray-700 dark:text-gray-300", children: dataset.organization })] })), isActive && (_jsx("div", { className: "mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 animate-fade-in", children: _jsx("button", { className: "btn-primary w-full text-sm", children: "View Details" }) }))] }));
+};
+//# sourceMappingURL=DatasetCard.js.map

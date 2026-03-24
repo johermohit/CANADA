@@ -5,7 +5,10 @@ let supabaseInstance: ReturnType<typeof createClient> | null = null;
 
 export function getSupabaseClient() {
   if (!supabaseInstance) {
-    const url = validateEnv('VITE_SUPABASE_URL');
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    if (!url) {
+      throw new Error('Missing SUPABASE_URL (or VITE_SUPABASE_URL)');
+    }
     const key = validateEnv('SUPABASE_SERVICE_ROLE_KEY');
     supabaseInstance = createClient(url, key);
   }
@@ -111,7 +114,7 @@ export async function getDataset(datasetId: string) {
     .eq('package_id', datasetId);
 
   return {
-    ...dataset,
+    ...(dataset as Record<string, unknown>),
     resources: resources || [],
   };
 }

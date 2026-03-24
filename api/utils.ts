@@ -49,7 +49,10 @@ export function validateObject<T>(
   schema: { [K in keyof T]: (v: any) => boolean }
 ): data is T {
   if (typeof data !== 'object' || data === null) return false;
-  for (const [key, validator] of Object.entries(schema)) {
+  for (const [key, validator] of Object.entries(schema) as Array<[
+    string,
+    (v: any) => boolean
+  ]>) {
     if (!validator((data as any)[key])) return false;
   }
   return true;
