@@ -6,9 +6,9 @@
 import React, { useState, useEffect } from 'react';
 import { useDiscoveryStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
-import { SearchInput } from './SearchInput';
-import { DatasetCard } from './DatasetCard';
-import { FilterPanel } from './FilterPanel';
+import { SearchInput } from './components/SearchInput';
+import { DatasetCard } from './components/DatasetCard';
+import { FilterPanel } from './components/FilterPanel';
 import { Settings } from 'lucide-react';
 import clsx from 'clsx';
 

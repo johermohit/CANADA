@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { App } from './src/App';
-import { initializeSupabase } from './src/lib/supabase';
-import './src/styles.css';
+import { App } from './App';
+import { initializeSupabase } from './lib/supabase';
+import './styles.css';
 
 // Initialize Supabase
 initializeSupabase();
