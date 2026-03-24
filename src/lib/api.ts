@@ -1,7 +1,33 @@
 import { OrchestrateRequest, OrchestrateResponse, SearchQuery, SearchResponse, PreviewRequest, PreviewResponse, ApiError } from './types';
 
-const apiBase =
-  import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:3000' : '');
+function isLocalhostHost(hostname: string) {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+}
+
+function resolveApiBaseUrl() {
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim();
+
+  if (configured) {
+    const normalized = configured.replace(/\/$/, '');
+    if (typeof window !== 'undefined') {
+      const isProductionLikeHost = !isLocalhostHost(window.location.hostname);
+      const isLocalConfiguredHost = /localhost|127\.0\.0\.1|::1/.test(normalized);
+
+      if (isProductionLikeHost && isLocalConfiguredHost) {
+        console.warn(
+          `Ignoring VITE_API_BASE_URL=${configured} on ${window.location.hostname}; using same-origin /api routes instead.`
+        );
+        return '';
+      }
+    }
+
+    return normalized;
+  }
+
+  return import.meta.env.DEV ? 'http://localhost:3000' : '';
+}
+
+const apiBase = resolveApiBaseUrl();
 
 function formatApiError(endpoint: string, status: number, payload?: Partial<ApiError> & { error?: string }) {
   const code = payload?.code || `HTTP_${status}`;
