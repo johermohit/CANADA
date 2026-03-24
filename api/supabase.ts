@@ -74,13 +74,18 @@ function normalizeResource(
   fields: DatastoreFieldRow[],
   views: ResourceViewRow[]
 ) {
+  const url = text(row.url);
+  const ckanResourceIdMatch = url.match(/\/resource\/([0-9a-fA-F-]{36})\b/);
+  const ckanResourceId = ckanResourceIdMatch?.[1] || '';
+
   return {
     id: text(row._link) || text(row.id),
     _link_main: text(row._link_main),
     name: text(row.name),
     format: text(row.format).toUpperCase(),
-    url: text(row.url),
+    url,
     size: text(row.size),
+    ckan_resource_id: ckanResourceId || undefined,
     datastore_fields: fields.map((field) => text(field.id)).filter(Boolean),
     resource_views: views.map((view) => text(view.view_type)).filter(Boolean),
   };

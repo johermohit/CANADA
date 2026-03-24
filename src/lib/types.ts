@@ -19,6 +19,7 @@ export interface DatasetResource {
   format: string;
   url: string;
   size: string;
+  ckan_resource_id?: string;
   datastore_fields: string[];
   resource_views: string[];
 }

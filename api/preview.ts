@@ -4,6 +4,7 @@
  */
 
 import { PreviewRequest, PreviewResponse } from '../src/lib/types';
+import { getSupabaseClient } from './supabase.js';
 import {
   createErrorResponse,
   getErrorMessage,
@@ -18,6 +19,75 @@ import {
 const PREVIEWABLE_FORMATS = ['CSV', 'JSON', 'GEOJSON'];
 const CKAN_TIMEOUT_MS = 5000;
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function extractResourceUuidFromUrl(url: string): string | null {
+  const match = (url || '').match(/\/resource\/([0-9a-fA-F-]{36})\b/);
+  return match?.[1] || null;
+}
+
+async function resolvePreviewResource(resourceId: string) {
+  if (isUuid(resourceId)) {
+    return {
+      ckanResourceId: resourceId,
+      resourceMeta: {
+        id: resourceId,
+        name: 'Resource',
+        format: 'UNKNOWN',
+        url: '',
+      },
+    };
+  }
+
+  const client = getSupabaseClient();
+  const columns = '_link, id, name, format, url';
+
+  let resourceLookup = await client
+    .from('resources')
+    .select(columns)
+    .eq('_link', resourceId)
+    .limit(1)
+    .maybeSingle();
+
+  if (!resourceLookup.data && !resourceLookup.error) {
+    resourceLookup = await client
+      .from('resources')
+      .select(columns)
+      .eq('id', resourceId)
+      .limit(1)
+      .maybeSingle();
+  }
+
+  if (resourceLookup.error) {
+    throw new Error(`Supabase resource lookup failed: ${resourceLookup.error.message}`);
+  }
+
+  const row = resourceLookup.data as
+    | { _link?: string; id?: string; name?: string; format?: string; url?: string }
+    | null;
+
+  if (!row) {
+    throw new Error('Resource not found in metadata store');
+  }
+
+  const ckanResourceId = extractResourceUuidFromUrl(row.url || '');
+  if (!ckanResourceId) {
+    throw new Error('Resource does not include a CKAN resource UUID in URL');
+  }
+
+  return {
+    ckanResourceId,
+    resourceMeta: {
+      id: row._link || row.id || resourceId,
+      name: row.name || 'Resource',
+      format: (row.format || 'UNKNOWN').toUpperCase(),
+      url: row.url || '',
+    },
+  };
+}
+
 async function fetchCKANPreview(resourceId: string, limit: number) {
   const ckanUrl = validateEnv('CKAN_API_URL');
   const url = `${ckanUrl}/action/datastore_search?resource_id=${resourceId}&limit=${limit}`;
@@ -29,7 +99,7 @@ async function fetchCKANPreview(resourceId: string, limit: number) {
     const response = await fetch(url, { signal: controller.signal });
 
     if (!response.ok) {
-      throw new Error(`CKAN API returned ${response.status}`);
+      throw new Error(`CKAN datastore_search returned ${response.status}`);
     }
 
     const data = await response.json();
@@ -82,19 +152,13 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    // This would be more complete with direct resource lookup,
-    // but for now we trust the resource_id from frontend
-    const previewData = await fetchCKANPreview(resource_id, limit);
+    const resolved = await resolvePreviewResource(resource_id);
+    const previewData = await fetchCKANPreview(resolved.ckanResourceId, limit);
 
     const response: PreviewResponse = {
       success: true,
       preview: {
-        resource: {
-          id: resource_id,
-          name: 'Resource',
-          format: 'CSV',
-          url: '',
-        },
+        resource: resolved.resourceMeta,
         rows: previewData.rows,
         columns: previewData.columns,
         row_count: previewData.row_count,
@@ -106,7 +170,12 @@ export default async function handler(req: any, res: any) {
       route,
       method: req.method,
       message: 'preview completed',
-      extra: { duration_ms: Date.now() - startedAt, resource_id, limit },
+      extra: {
+        duration_ms: Date.now() - startedAt,
+        resource_id,
+        resolved_ckan_resource_id: resolved.ckanResourceId,
+        limit,
+      },
     });
 
     sendJson(res, 200, response, origin);

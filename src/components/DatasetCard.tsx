@@ -31,7 +31,7 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
 
   const resources = dataset.resources || [];
 
-  const loadPreview = async (resourceId: string) => {
+  const loadPreview = async (resourceId: string, previewResourceId: string) => {
     setPreviewErrorsByResource((prev) => {
       const next = { ...prev };
       delete next[resourceId];
@@ -39,7 +39,7 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
     });
     setLoadingResourceId(resourceId);
     try {
-      const response = await apiClient.preview(resourceId, 25);
+      const response = await apiClient.preview(previewResourceId, 25);
       setPreviewByResource((prev) => ({ ...prev, [resourceId]: response }));
     } catch (error: any) {
       setPreviewErrorsByResource((prev) => ({
@@ -157,7 +157,7 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
                 <div className="mt-3 flex items-center gap-2">
                   <button
                     className="btn-primary text-xs"
-                    onClick={() => loadPreview(resource.id)}
+                    onClick={() => loadPreview(resource.id, resource.ckan_resource_id || resource.id)}
                     disabled={isLoading}
                   >
                     {isLoading ? (
