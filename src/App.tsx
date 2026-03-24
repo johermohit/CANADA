@@ -6,13 +6,22 @@
 import React, { useState, useEffect } from 'react';
 import { useDiscoveryStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
+import { SearchResponse } from '@/lib/types';
 import { SearchInput } from './components/SearchInput';
 import { DatasetCard } from './components/DatasetCard';
 import { FilterPanel } from './components/FilterPanel';
 import { AlertTriangle, Settings } from 'lucide-react';
 import clsx from 'clsx';
 
+const EMPTY_FACETS: SearchResponse['facets'] = {
+  organizations: [],
+  formats: [],
+  recency: [],
+};
+
 export const App: React.FC = () => {
+  const [currentPrompt, setCurrentPrompt] = useState('');
+  const [facets, setFacets] = useState<SearchResponse['facets']>(EMPTY_FACETS);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check system preference or localStorage
     if (typeof localStorage !== 'undefined') {
@@ -26,12 +35,15 @@ export const App: React.FC = () => {
     datasets,
     loading,
     total,
+    hasMore,
     error,
+    filters,
     showFilters,
     toggleFilters,
     setLoading,
     setDatasets,
     setTotal,
+    setHasMore,
     setError,
   } = useDiscoveryStore();
 
@@ -47,19 +59,46 @@ export const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  const handleSearch = async (intent: string) => {
+  const handleSearch = async (intent: string, append = false) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.orchestrate({ prompt: intent });
-      setDatasets(response.results.datasets);
+      const offset = append ? datasets.length : 0;
+      const response = await apiClient.orchestrate({
+        prompt: intent,
+        filters,
+        limit: 12,
+        offset,
+      });
+
+      if (append) {
+        const existingIds = new Set(datasets.map((dataset) => dataset.id));
+        const nextBatch = response.results.datasets.filter((dataset) => !existingIds.has(dataset.id));
+        setDatasets([...datasets, ...nextBatch]);
+      } else {
+        setDatasets(response.results.datasets);
+      }
+
       setTotal(response.results.total);
+      setHasMore(response.results.has_more);
+      setFacets(response.results.facets || EMPTY_FACETS);
+      setCurrentPrompt(intent);
     } catch (err: any) {
       console.error('Search request failed', err);
       setError(err.message || 'Search failed');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApplyFilters = () => {
+    if (!currentPrompt) return;
+    handleSearch(currentPrompt, false);
+  };
+
+  const handleLoadMore = () => {
+    if (!currentPrompt || loading) return;
+    handleSearch(currentPrompt, true);
   };
 
   return (
@@ -96,27 +135,8 @@ export const App: React.FC = () => {
           {showFilters && (
             <aside className="lg:col-span-1 h-fit sticky top-24">
               <FilterPanel
-                facets={
-                  datasets.length > 0
-                    ? {
-                        organizations: [
-                          { label: 'Environment Canada', count: 142 },
-                          { label: 'Health Canada', count: 98 },
-                          { label: 'Transport Canada', count: 76 },
-                        ],
-                        formats: [
-                          { label: 'CSV', count: 234 },
-                          { label: 'JSON', count: 156 },
-                          { label: 'PDF', count: 89 },
-                        ],
-                        recency: [
-                          { label: 'Last 7 days', count: 23 },
-                          { label: 'Last 30 days', count: 67 },
-                          { label: 'Last 90 days', count: 145 },
-                        ],
-                      }
-                    : { organizations: [], formats: [], recency: [] }
-                }
+                facets={facets}
+                onApply={handleApplyFilters}
                 onClose={() => toggleFilters()}
               />
             </aside>
@@ -170,7 +190,7 @@ export const App: React.FC = () => {
               <>
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-                    {total} result{total !== 1 ? 's' : ''} found
+                    Showing {datasets.length} of {total} result{total !== 1 ? 's' : ''}
                   </h2>
                   <button
                     onClick={() => toggleFilters()}
@@ -184,6 +204,13 @@ export const App: React.FC = () => {
                     <DatasetCard key={dataset.id} dataset={dataset} />
                   ))}
                 </div>
+                {hasMore && (
+                  <div className="mt-6">
+                    <button onClick={handleLoadMore} className="btn-secondary w-full" disabled={loading}>
+                      {loading ? 'Loading...' : 'Load More'}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

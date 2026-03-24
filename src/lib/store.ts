@@ -6,6 +6,7 @@ export interface DiscoveryState {
   datasets: Dataset[];
   loading: boolean;
   total: number;
+  hasMore: boolean;
   error: string | null;
 
   // UI state
@@ -19,6 +20,7 @@ export interface DiscoveryState {
   setTotal: (total: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setHasMore: (hasMore: boolean) => void;
   setFilters: (filters: FilterState) => void;
   addFilter: (key: keyof FilterState, value: any) => void;
   removeFilter: (key: keyof FilterState, value?: any) => void;
@@ -32,6 +34,7 @@ const initialState = {
   datasets: [],
   loading: false,
   total: 0,
+  hasMore: false,
   error: null,
   filters: {} as FilterState,
   selectedDatasetId: null,
@@ -46,6 +49,7 @@ export const useDiscoveryStore = create<DiscoveryState>((set) => ({
   setTotal: (total) => set({ total }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+  setHasMore: (hasMore) => set({ hasMore }),
 
   setFilters: (filters) => set({ filters }),
   addFilter: (key, value) =>

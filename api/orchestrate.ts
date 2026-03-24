@@ -72,6 +72,17 @@ function parseIntent(prompt: string): FilterState {
   };
 }
 
+function mergeFilters(parsed: FilterState, provided?: FilterState): FilterState {
+  if (!provided) return parsed;
+
+  return {
+    keywords: provided.keywords?.length ? provided.keywords : parsed.keywords,
+    organizations: provided.organizations?.length ? provided.organizations : parsed.organizations,
+    formats: provided.formats?.length ? provided.formats : parsed.formats,
+    recency_days: provided.recency_days ?? parsed.recency_days,
+  };
+}
+
 export default async function handler(req: any, res: any) {
   const requestId = req.headers['x-request-id'] || `req_${Date.now()}`;
   const route = '/api/orchestrate';
@@ -107,15 +118,19 @@ export default async function handler(req: any, res: any) {
     const startTime = Date.now();
 
     // Parse intent into structured filter
-    const filters = parseIntent(body.prompt);
+    const parsedFilters = parseIntent(body.prompt);
+    const filters = mergeFilters(parsedFilters, body.filters);
+    const limit = body.limit || 12;
+    const offset = body.offset || 0;
 
     // Execute search with parsed filters
-    const { total, datasets } = await searchDatasets({
+    const { total, visible, has_more, datasets } = await searchDatasets({
       keywords: filters.keywords,
       organizations: filters.organizations,
       formats: filters.formats,
       recency_days: filters.recency_days,
-      limit: 12,
+      limit,
+      offset,
     });
 
     const executionTime = Date.now() - startTime;
@@ -124,6 +139,10 @@ export default async function handler(req: any, res: any) {
       query: filters,
       results: {
         total,
+        visible,
+        offset,
+        limit,
+        has_more,
         datasets,
         facets: {
           organizations: [],
@@ -148,6 +167,7 @@ export default async function handler(req: any, res: any) {
       extra: {
         duration_ms: Date.now() - startedAt,
         total,
+        visible,
         datasets: datasets.length,
         payload_bytes: payload.length,
       },

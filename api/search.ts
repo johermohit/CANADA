@@ -50,14 +50,21 @@ export default async function handler(req: any, res: any) {
 
     const startTime = Date.now();
 
-    const { total, datasets } = await searchDatasets({
+    const limit = body.limit || 12;
+    const offset = body.offset || 0;
+
+    const { total, visible, has_more, datasets } = await searchDatasets({
       keywords,
-      limit: body.limit || 12,
-      offset: body.offset || 0,
+      limit,
+      offset,
     });
 
     const response: SearchResponse = {
       total,
+      visible,
+      offset,
+      limit,
+      has_more,
       datasets,
       facets: {
         organizations: [],
@@ -75,7 +82,7 @@ export default async function handler(req: any, res: any) {
       route,
       method: req.method,
       message: 'search completed',
-      extra: { duration_ms: Date.now() - startedAt, total, datasets: datasets.length },
+      extra: { duration_ms: Date.now() - startedAt, total, visible, datasets: datasets.length },
     });
 
     sendJson(res, 200, response, origin);

@@ -7,6 +7,11 @@ type DatasetRow = {
   title_translated_en?: string;
   notes_translated_en?: string;
   url?: string;
+  metadata_modified?: string;
+  metadata_created?: string;
+  modified?: string;
+  created?: string;
+  resources?: ResourceRow[];
 };
 
 type ResourceRow = {
@@ -50,12 +55,15 @@ function normalizeDatasetSummary(row: DatasetRow, resources: Array<{ format?: st
     new Set(resources.map((resource) => text(resource.format).toUpperCase()).filter(Boolean))
   );
 
+  const metadataModified =
+    text(row.metadata_modified) || text(row.modified) || text(row.metadata_created) || text(row.created) || '';
+
   return {
     id: text(row._link) || text(row.id) || 'unknown-dataset',
     title: clip(text(row.title_translated_en) || 'Untitled dataset', 180),
     description: clip(text(row.notes_translated_en), 600),
     organization: '',
-    metadata_modified: new Date().toISOString(),
+    metadata_modified: metadataModified || null,
     resource_count: resourceCount,
     formats,
   };
@@ -172,6 +180,19 @@ async function fetchResourcesWithMetadata(client: ReturnType<typeof createClient
   return { resourcesByDataset };
 }
 
+function buildTitleOrFilter(keywords: string[]) {
+  const terms = keywords
+    .map((keyword) => text(keyword).trim())
+    .filter(Boolean)
+    .map((keyword) => keyword.replace(/,/g, ' ').replace(/\*/g, ''))
+    .map((keyword) => keyword.replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+
+  if (!terms.length) return '';
+
+  return terms.map((keyword) => `title_translated_en.ilike.%${keyword}%`).join(',');
+}
+
 async function fetchResourceSummaries(client: ReturnType<typeof createClient>, datasetLinks: string[]) {
   if (!datasetLinks.length) {
     return new Map<string, Array<{ format?: string }>>();
@@ -215,14 +236,20 @@ export async function searchDatasets(filters: {
 
   let query = client
     .from('datasets')
-    .select('_link, id, title_translated_en, notes_translated_en, url', { count: 'exact' })
+    .select(
+      `_link, id, title_translated_en, notes_translated_en, url,
+       resources(_link, _link_main, id, name, format, url, size,
+         datastore_fields(_link, _link_resources, id),
+         resource_views(_link, _link_resources, view_type)
+       )`,
+      { count: 'exact' }
+    )
     .range(offset, offset + limit - 1);
 
-  // As requested: match title_translated_en for the search term.
-  if (keywords.length > 0) {
-    keywords.forEach((keyword) => {
-      query = query.ilike('title_translated_en', `%${keyword}%`);
-    });
+  // Match ANY search token (OR semantics) in title_translated_en.
+  const titleOrFilter = buildTitleOrFilter(keywords);
+  if (titleOrFilter) {
+    query = query.or(titleOrFilter);
   }
 
   const { data, count, error } = await query;
@@ -232,14 +259,20 @@ export async function searchDatasets(filters: {
   }
 
   const datasetRows = (data || []) as DatasetRow[];
-  const datasetLinks = datasetRows.map((row) => text(row._link)).filter(Boolean);
-
-  const resourcesByDataset = await fetchResourceSummaries(client, datasetLinks);
 
   let normalized = datasetRows.map((row) => {
-    const datasetLink = text(row._link);
-    const resources = resourcesByDataset.get(datasetLink) || [];
-    return normalizeDatasetSummary(row, resources);
+    const joinedResources = ((row.resources || []) as ResourceRow[]).map((resource) =>
+      normalizeResource(
+        resource,
+        ((resource as any).datastore_fields || []) as DatastoreFieldRow[],
+        ((resource as any).resource_views || []) as ResourceViewRow[]
+      )
+    );
+
+    return {
+      ...normalizeDatasetSummary(row, joinedResources),
+      resources: joinedResources,
+    };
   });
 
   if (formats.length > 0) {
@@ -249,8 +282,15 @@ export async function searchDatasets(filters: {
     );
   }
 
+  const visible = normalized.length;
+  const total = formats.length > 0 ? normalized.length : count || normalized.length;
+
   return {
-    total: formats.length > 0 ? normalized.length : count || normalized.length,
+    total,
+    visible,
+    offset,
+    limit,
+    has_more: offset + visible < total,
     datasets: normalized,
   };
 }

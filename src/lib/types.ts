@@ -5,10 +5,22 @@ export interface Dataset {
   title: string;
   description: string;
   organization: string;
-  metadata_modified: string;
+  metadata_modified: string | null;
   resource_count: number;
   formats: string[];
+  resources?: DatasetResource[];
   rank_score?: number;
+}
+
+export interface DatasetResource {
+  id: string;
+  _link_main: string;
+  name: string;
+  format: string;
+  url: string;
+  size: string;
+  datastore_fields: string[];
+  resource_views: string[];
 }
 
 export interface Resource {
@@ -16,9 +28,9 @@ export interface Resource {
   name: string;
   format: string;
   url: string;
-  created: string;
-  last_modified: string;
-  package_id: string;
+  created?: string;
+  last_modified?: string;
+  package_id?: string;
 }
 
 export interface ResourcePreview {
@@ -37,6 +49,10 @@ export interface SearchQuery {
 
 export interface SearchResponse {
   total: number;
+  visible: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
   datasets: Dataset[];
   facets: {
     organizations: Array<{ label: string; count: number }>;
@@ -48,6 +64,8 @@ export interface SearchResponse {
 export interface OrchestrateRequest {
   prompt: string;
   filters?: FilterState;
+  limit?: number;
+  offset?: number;
 }
 
 export interface OrchestrateResponse {
