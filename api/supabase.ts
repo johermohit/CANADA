@@ -1,6 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 import { validateEnv } from './utils.js';
 
+type DatasetRow = {
+  _link?: string;
+  id?: string;
+  title_translated_en?: string;
+  notes_translated_en?: string;
+  url?: string;
+};
+
+type ResourceRow = {
+  _link?: string;
+  _link_main?: string;
+  id?: string;
+  name?: string;
+  format?: string;
+  url?: string;
+  size?: string;
+};
+
 type DatastoreFieldRow = {
   _link?: string;
   _link_resources?: string;
@@ -13,78 +31,48 @@ type ResourceViewRow = {
   view_type?: string;
 };
 
-type ResourceRow = {
-  _link?: string;
-  _link_main?: string;
-  id?: string;
-  name?: string;
-  format?: string;
-  url?: string;
-  size?: string;
-  datastore_fields?: DatastoreFieldRow[];
-  resource_views?: ResourceViewRow[];
-};
+let supabaseInstance: ReturnType<typeof createClient> | null = null;
 
-type DatasetRow = {
-  _link?: string;
-  id?: string;
-  title_translated_en?: string;
-  notes_translated_en?: string;
-  url?: string;
-  resources?: ResourceRow[];
-};
+function text(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+}
 
-function normalizeDatasetRow(row: DatasetRow) {
-  const resources = Array.isArray(row.resources) ? row.resources : [];
-
+function normalizeDataset(row: DatasetRow, resources: ResourceRow[]) {
+  const resourceCount = resources.length;
   const formats = Array.from(
-    new Set(
-      resources
-        .map((resource) => (resource.format || '').trim().toUpperCase())
-        .filter((format) => Boolean(format))
-    )
+    new Set(resources.map((resource) => text(resource.format).toUpperCase()).filter(Boolean))
   );
 
   return {
-    id: row._link || row.id || 'unknown-dataset',
-    title: row.title_translated_en || 'Untitled dataset',
-    description: row.notes_translated_en || '',
+    id: text(row._link) || text(row.id) || 'unknown-dataset',
+    title: text(row.title_translated_en) || 'Untitled dataset',
+    description: text(row.notes_translated_en),
     organization: '',
     metadata_modified: new Date().toISOString(),
-    resource_count: resources.length,
+    resource_count: resourceCount,
     formats,
-    resources: resources.map((resource) => ({
-      id: resource._link || resource.id || '',
-      name: resource.name || '',
-      format: (resource.format || '').toUpperCase(),
-      url: resource.url || '',
-      size: resource.size || '',
-      datastore_fields: Array.isArray(resource.datastore_fields)
-        ? resource.datastore_fields.map((field) => field.id).filter(Boolean)
-        : [],
-      resource_views: Array.isArray(resource.resource_views)
-        ? resource.resource_views.map((view) => view.view_type).filter(Boolean)
-        : [],
-    })),
+    resources,
   };
 }
 
-function applyClientKeywordFilter(rows: DatasetRow[], keywords: string[]) {
-  if (!keywords.length) {
-    return rows;
-  }
-
-  const normalizedKeywords = keywords.map((keyword) => keyword.toLowerCase());
-
-  return rows.filter((row) => {
-    const haystack = [row.title_translated_en || '', row.notes_translated_en || '']
-      .join(' ')
-      .toLowerCase();
-    return normalizedKeywords.every((keyword) => haystack.includes(keyword));
-  });
+function normalizeResource(
+  row: ResourceRow,
+  fields: DatastoreFieldRow[],
+  views: ResourceViewRow[]
+) {
+  return {
+    id: text(row._link) || text(row.id),
+    _link_main: text(row._link_main),
+    name: text(row.name),
+    format: text(row.format).toUpperCase(),
+    url: text(row.url),
+    size: text(row.size),
+    datastore_fields: fields.map((field) => text(field.id)).filter(Boolean),
+    resource_views: views.map((view) => text(view.view_type)).filter(Boolean),
+  };
 }
-
-let supabaseInstance: ReturnType<typeof createClient> | null = null;
 
 export function getSupabaseClient() {
   if (!supabaseInstance) {
@@ -92,14 +80,97 @@ export function getSupabaseClient() {
     if (!url) {
       throw new Error('Missing SUPABASE_URL (or VITE_SUPABASE_URL)');
     }
+
     const key = validateEnv('SUPABASE_SERVICE_ROLE_KEY');
     supabaseInstance = createClient(url, key);
   }
+
   return supabaseInstance;
 }
 
+async function fetchResourcesWithMetadata(client: ReturnType<typeof createClient>, datasetLinks: string[]) {
+  if (!datasetLinks.length) {
+    return {
+      resourcesByDataset: new Map<string, any[]>(),
+    };
+  }
+
+  const { data: resources, error: resourceError } = await client
+    .from('resources')
+    .select('_link, _link_main, id, name, format, url, size')
+    .in('_link_main', datasetLinks);
+
+  if (resourceError) {
+    throw new Error(`Supabase resources query error: ${resourceError.message}`);
+  }
+
+  const resourceRows = (resources || []) as ResourceRow[];
+  const resourceLinks = resourceRows.map((row) => text(row._link)).filter(Boolean);
+
+  const [fieldsResult, viewsResult] = await Promise.all([
+    resourceLinks.length
+      ? client
+          .from('datastore_fields')
+          .select('_link, _link_resources, id')
+          .in('_link_resources', resourceLinks)
+      : Promise.resolve({ data: [], error: null } as any),
+    resourceLinks.length
+      ? client
+          .from('resource_views')
+          .select('_link, _link_resources, view_type')
+          .in('_link_resources', resourceLinks)
+      : Promise.resolve({ data: [], error: null } as any),
+  ]);
+
+  if (fieldsResult.error) {
+    throw new Error(`Supabase datastore_fields query error: ${fieldsResult.error.message}`);
+  }
+
+  if (viewsResult.error) {
+    throw new Error(`Supabase resource_views query error: ${viewsResult.error.message}`);
+  }
+
+  const fieldsByResource = new Map<string, DatastoreFieldRow[]>();
+  ((fieldsResult.data || []) as DatastoreFieldRow[]).forEach((row) => {
+    const resourceLink = text(row._link_resources);
+    if (!resourceLink) return;
+    const current = fieldsByResource.get(resourceLink) || [];
+    current.push(row);
+    fieldsByResource.set(resourceLink, current);
+  });
+
+  const viewsByResource = new Map<string, ResourceViewRow[]>();
+  ((viewsResult.data || []) as ResourceViewRow[]).forEach((row) => {
+    const resourceLink = text(row._link_resources);
+    if (!resourceLink) return;
+    const current = viewsByResource.get(resourceLink) || [];
+    current.push(row);
+    viewsByResource.set(resourceLink, current);
+  });
+
+  const resourcesByDataset = new Map<string, any[]>();
+  resourceRows.forEach((row) => {
+    const datasetLink = text(row._link_main);
+    if (!datasetLink) return;
+
+    const resourceLink = text(row._link);
+    const normalized = normalizeResource(
+      row,
+      fieldsByResource.get(resourceLink) || [],
+      viewsByResource.get(resourceLink) || []
+    );
+
+    const current = resourcesByDataset.get(datasetLink) || [];
+    current.push(normalized);
+    resourcesByDataset.set(datasetLink, current);
+  });
+
+  return { resourcesByDataset };
+}
+
 /**
- * Search datasets in Supabase with filters
+ * Search datasets using the real schema:
+ * datasets(_link) -> resources(_link_main) -> datastore_fields/resource_views(_link_resources)
  */
 export async function searchDatasets(filters: {
   keywords?: string[];
@@ -114,134 +185,79 @@ export async function searchDatasets(filters: {
 
   let query = client
     .from('datasets')
-    .select(
-      `
-        _link,
-        id,
-        title_translated_en,
-        notes_translated_en,
-        url,
-        resources (
-          _link,
-          _link_main,
-          id,
-          name,
-          format,
-          url,
-          size,
-          datastore_fields (
-            _link,
-            _link_resources,
-            id
-          ),
-          resource_views (
-            _link,
-            _link_resources,
-            view_type
-          )
-        )
-      `,
-      { count: 'exact' }
-    )
+    .select('_link, id, title_translated_en, notes_translated_en, url', { count: 'exact' })
     .range(offset, offset + limit - 1);
 
+  // As requested: match title_translated_en for the search term.
   if (keywords.length > 0) {
-    const keywordOr = keywords
-      .map((keyword) => [
-        `title_translated_en.ilike.%${keyword}%`,
-        `notes_translated_en.ilike.%${keyword}%`,
-      ])
-      .flat()
-      .join(',');
-    query = query.or(keywordOr);
+    keywords.forEach((keyword) => {
+      query = query.ilike('title_translated_en', `%${keyword}%`);
+    });
   }
 
   const { data, count, error } = await query;
+
   if (error) {
     throw new Error(`Supabase query error: ${error.message}`);
   }
 
-  let rows = Array.isArray(data) ? (data as DatasetRow[]) : [];
+  const datasetRows = (data || []) as DatasetRow[];
+  const datasetLinks = datasetRows.map((row) => text(row._link)).filter(Boolean);
 
-  if (keywords.length > 0) {
-    rows = applyClientKeywordFilter(rows, keywords);
-  }
+  const { resourcesByDataset } = await fetchResourcesWithMetadata(client, datasetLinks);
+
+  let normalized = datasetRows.map((row) => {
+    const datasetLink = text(row._link);
+    const resources = resourcesByDataset.get(datasetLink) || [];
+    return normalizeDataset(row, resources);
+  });
 
   if (formats.length > 0) {
-    const requestedFormats = new Set(formats.map((format) => format.toUpperCase()));
-    rows = rows.filter((row) => {
-      const resources = Array.isArray(row.resources) ? row.resources : [];
-      return resources.some((resource) => requestedFormats.has((resource.format || '').toUpperCase()));
-    });
+    const requested = new Set(formats.map((format) => format.toUpperCase()));
+    normalized = normalized.filter((dataset) =>
+      dataset.resources.some((resource: any) => requested.has(text(resource.format).toUpperCase()))
+    );
   }
 
-  const datasets = rows.map(normalizeDatasetRow);
-
   return {
-    total: keywords.length > 0 || formats.length > 0 ? datasets.length : count || datasets.length,
-    datasets,
+    total: formats.length > 0 ? normalized.length : count || normalized.length,
+    datasets: normalized,
   };
 }
 
 /**
- * Get a single dataset with its resources
+ * Get one dataset and all related resources/fields/views.
  */
 export async function getDataset(datasetId: string) {
   const client = getSupabaseClient();
 
-  const { data: dataset, error } = await client
+  const { data, error } = await client
     .from('datasets')
-    .select(
-      `
-        _link,
-        id,
-        title_translated_en,
-        notes_translated_en,
-        url,
-        resources (
-          _link,
-          _link_main,
-          id,
-          name,
-          format,
-          url,
-          size,
-          datastore_fields (
-            _link,
-            _link_resources,
-            id
-          ),
-          resource_views (
-            _link,
-            _link_resources,
-            view_type
-          )
-        )
-      `
-    )
+    .select('_link, id, title_translated_en, notes_translated_en, url')
     .or(`_link.eq.${datasetId},id.eq.${datasetId}`)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
-  if (error || !dataset) {
+  if (error || !data) {
     throw new Error(`Dataset not found: ${datasetId}`);
   }
 
-  return {
-    ...normalizeDatasetRow(dataset as DatasetRow),
-  };
+  const datasetRow = data as DatasetRow;
+  const datasetLink = text(datasetRow._link);
+  const { resourcesByDataset } = await fetchResourcesWithMetadata(client, datasetLink ? [datasetLink] : []);
+
+  return normalizeDataset(datasetRow, resourcesByDataset.get(datasetLink) || []);
 }
 
 /**
- * Get organizations/publishers for faceted filtering
+ * No organization column in the provided schema.
  */
 export async function getOrganizations() {
-  // Current schema has no organization column in datasets.
-  // Keep API contract stable by returning an empty facet.
   return [];
 }
 
 /**
- * Get available formats for filtering
+ * Build format facets from resources table.
  */
 export async function getAvailableFormats() {
   const client = getSupabaseClient();
@@ -256,11 +272,10 @@ export async function getAvailableFormats() {
   }
 
   const formats = new Map<string, number>();
-  data?.forEach((row: any) => {
-    const fmt = row.format?.toUpperCase();
-    if (fmt) {
-      formats.set(fmt, (formats.get(fmt) || 0) + 1);
-    }
+  (data || []).forEach((row: any) => {
+    const value = text(row.format).toUpperCase();
+    if (!value) return;
+    formats.set(value, (formats.get(value) || 0) + 1);
   });
 
   return Array.from(formats.entries())
