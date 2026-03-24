@@ -4,7 +4,7 @@
  */
 
 import { SearchQuery, SearchResponse } from '../src/lib/types';
-import { searchDatasets, getOrganizations, getAvailableFormats } from './supabase.js';
+import { searchDatasets } from './supabase.js';
 import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, parseRequestBody } from './utils.js';
 
 export default async function handler(req: any) {
@@ -40,22 +40,16 @@ export default async function handler(req: any) {
 
     const { total, datasets } = await searchDatasets({
       keywords,
-      limit: body.limit || 20,
+      limit: body.limit || 12,
       offset: body.offset || 0,
     });
-
-    // Fetch facet data for filters
-    const [organizations, formats] = await Promise.all([
-      getOrganizations(),
-      getAvailableFormats(),
-    ]);
 
     const response: SearchResponse = {
       total,
       datasets,
       facets: {
-        organizations,
-        formats,
+        organizations: [],
+        formats: [],
         recency: [
           { label: 'Last 7 days', count: 0 },
           { label: 'Last 30 days', count: 0 },

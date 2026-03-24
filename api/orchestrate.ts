@@ -5,7 +5,7 @@
  */
 
 import { OrchestrateRequest, OrchestrateResponse, FilterState } from '../src/lib/types';
-import { searchDatasets, getOrganizations, getAvailableFormats } from './supabase.js';
+import { searchDatasets } from './supabase.js';
 import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, parseRequestBody } from './utils.js';
 
 // Simple intent parser (can be replaced with LLM call)
@@ -103,14 +103,8 @@ export default async function handler(req: any) {
       organizations: filters.organizations,
       formats: filters.formats,
       recency_days: filters.recency_days,
-      limit: 20,
+      limit: 12,
     });
-
-    // Fetch facets
-    const [organizations, formats] = await Promise.all([
-      getOrganizations(),
-      getAvailableFormats(),
-    ]);
 
     const executionTime = Date.now() - startTime;
 
@@ -120,8 +114,8 @@ export default async function handler(req: any) {
         total,
         datasets,
         facets: {
-          organizations,
-          formats,
+          organizations: [],
+          formats: [],
           recency: [
             { label: 'Last 7 days', count: 0 },
             { label: 'Last 30 days', count: 0 },
