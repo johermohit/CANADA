@@ -132,15 +132,22 @@ export default async function handler(req: any) {
       execution_time_ms: executionTime,
     };
 
+    const payload = JSON.stringify(response);
+
     logApiInfo({
       requestId,
       route,
       method: req.method,
       message: 'orchestrate completed',
-      extra: { duration_ms: Date.now() - startedAt, total, datasets: datasets.length },
+      extra: {
+        duration_ms: Date.now() - startedAt,
+        total,
+        datasets: datasets.length,
+        payload_bytes: payload.length,
+      },
     });
 
-    return new Response(JSON.stringify(response), {
+    return new Response(payload, {
       status: 200,
       headers: {
         'Content-Type': 'application/json',

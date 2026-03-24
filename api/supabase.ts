@@ -39,6 +39,11 @@ function text(value: unknown): string {
   return '';
 }
 
+function clip(value: string, maxLen: number): string {
+  if (value.length <= maxLen) return value;
+  return `${value.slice(0, maxLen - 1)}...`;
+}
+
 function normalizeDatasetSummary(row: DatasetRow, resources: Array<{ format?: string }>) {
   const resourceCount = resources.length;
   const formats = Array.from(
@@ -47,8 +52,8 @@ function normalizeDatasetSummary(row: DatasetRow, resources: Array<{ format?: st
 
   return {
     id: text(row._link) || text(row.id) || 'unknown-dataset',
-    title: text(row.title_translated_en) || 'Untitled dataset',
-    description: text(row.notes_translated_en),
+    title: clip(text(row.title_translated_en) || 'Untitled dataset', 180),
+    description: clip(text(row.notes_translated_en), 600),
     organization: '',
     metadata_modified: new Date().toISOString(),
     resource_count: resourceCount,
