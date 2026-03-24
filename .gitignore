@@ -1,0 +1,29 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Build artifacts
+.turbo/
+.next/
+
+# Testing
+coverage/
+.nyc_output/

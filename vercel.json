@@ -1,0 +1,27 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "env": {
+    "VITE_SUPABASE_URL": "@supabase_url",
+    "VITE_SUPABASE_ANON_KEY": "@supabase_anon_key",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_key",
+    "OPENAI_API_KEY": "@openai_key",
+    "CKAN_API_URL": "@ckan_api_url",
+    "JWT_SECRET": "@jwt_secret",
+    "APP_ORIGIN": "@app_origin"
+  },
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 512,
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
+}
