@@ -7,6 +7,9 @@ type DatasetRow = {
   title_translated_en?: string;
   notes_translated_en?: string;
   url?: string;
+  organization_title?: string;
+  organization_name?: string;
+  date_modified?: string;
   metadata_modified?: string;
   metadata_created?: string;
   modified?: string;
@@ -18,10 +21,12 @@ type ResourceRow = {
   _link?: string;
   _link_main?: string;
   id?: string;
+  resource_id?: string;
   name?: string;
   format?: string;
   url?: string;
   size?: string;
+  datastore_active?: string;
 };
 
 type DatastoreFieldRow = {
@@ -56,13 +61,18 @@ function normalizeDatasetSummary(row: DatasetRow, resources: Array<{ format?: st
   );
 
   const metadataModified =
-    text(row.metadata_modified) || text(row.modified) || text(row.metadata_created) || text(row.created) || '';
+    text(row.metadata_modified) ||
+    text(row.date_modified) ||
+    text(row.modified) ||
+    text(row.metadata_created) ||
+    text(row.created) ||
+    '';
 
   return {
     id: text(row._link) || text(row.id) || 'unknown-dataset',
     title: clip(text(row.title_translated_en) || 'Untitled dataset', 180),
     description: clip(text(row.notes_translated_en), 600),
-    organization: '',
+    organization: text(row.organization_title) || text(row.organization_name),
     metadata_modified: metadataModified || null,
     resource_count: resourceCount,
     formats,
@@ -76,7 +86,7 @@ function normalizeResource(
 ) {
   const url = text(row.url);
   const ckanResourceIdMatch = url.match(/\/resource\/([0-9a-fA-F-]{36})\b/);
-  const ckanResourceId = ckanResourceIdMatch?.[1] || '';
+  const ckanResourceId = text(row.resource_id) || ckanResourceIdMatch?.[1] || '';
 
   return {
     id: text(row._link) || text(row.id),
@@ -85,6 +95,7 @@ function normalizeResource(
     format: text(row.format).toUpperCase(),
     url,
     size: text(row.size),
+    datastore_active: text(row.datastore_active).toLowerCase() === 'true',
     ckan_resource_id: ckanResourceId || undefined,
     datastore_fields: fields.map((field) => text(field.id)).filter(Boolean),
     resource_views: views.map((view) => text(view.view_type)).filter(Boolean),
@@ -114,7 +125,7 @@ async function fetchResourcesWithMetadata(client: ReturnType<typeof createClient
 
   const { data: resources, error: resourceError } = await client
     .from('resources')
-    .select('_link, _link_main, id, name, format, url, size')
+    .select('_link, _link_main, id, resource_id, name, format, url, size, datastore_active')
     .in('_link_main', datasetLinks);
 
   if (resourceError) {
@@ -241,7 +252,7 @@ export async function searchDatasets(filters: {
 
   let query = client
     .from('datasets')
-    .select('_link, id, title_translated_en, notes_translated_en, url', { count: 'exact' })
+    .select('_link, id, title_translated_en, notes_translated_en, url, organization_title, organization_name, metadata_modified, date_modified', { count: 'exact' })
     .range(offset, offset + limit - 1);
 
   // Match ANY search token (OR semantics) in title_translated_en.
@@ -298,7 +309,7 @@ export async function getDataset(datasetId: string) {
 
   const { data, error } = await client
     .from('datasets')
-    .select('_link, id, title_translated_en, notes_translated_en, url')
+    .select('_link, id, title_translated_en, notes_translated_en, url, organization_title, organization_name, metadata_modified, date_modified')
     .or(`_link.eq.${datasetId},id.eq.${datasetId}`)
     .limit(1)
     .maybeSingle();
@@ -320,10 +331,29 @@ export async function getDataset(datasetId: string) {
 }
 
 /**
- * No organization column in the provided schema.
+ * Build organization facets from dataset organization columns.
  */
 export async function getOrganizations() {
-  return [];
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from('datasets')
+    .select('organization_title, organization_name');
+
+  if (error) {
+    return [];
+  }
+
+  const orgs = new Map<string, number>();
+  (data || []).forEach((row: any) => {
+    const label = text(row.organization_title) || text(row.organization_name);
+    if (!label) return;
+    orgs.set(label, (orgs.get(label) || 0) + 1);
+  });
+
+  return Array.from(orgs.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
 }
 
 /**

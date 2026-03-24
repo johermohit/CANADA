@@ -42,7 +42,7 @@ async function resolvePreviewResource(resourceId: string) {
   }
 
   const client = getSupabaseClient();
-  const columns = '_link, id, name, format, url';
+  const columns = '_link, id, resource_id, name, format, url, datastore_active';
 
   let resourceLookup = await client
     .from('resources')
@@ -65,16 +65,29 @@ async function resolvePreviewResource(resourceId: string) {
   }
 
   const row = resourceLookup.data as
-    | { _link?: string; id?: string; name?: string; format?: string; url?: string }
+    | {
+        _link?: string;
+        id?: string;
+        resource_id?: string;
+        name?: string;
+        format?: string;
+        url?: string;
+        datastore_active?: string;
+      }
     | null;
 
   if (!row) {
     throw new Error('Resource not found in metadata store');
   }
 
-  const ckanResourceId = extractResourceUuidFromUrl(row.url || '');
+  const datastoreActive = (row.datastore_active || '').toLowerCase() === 'true';
+  if (row.datastore_active && !datastoreActive) {
+    throw new Error('Resource datastore is not active for CKAN preview');
+  }
+
+  const ckanResourceId = row.resource_id || extractResourceUuidFromUrl(row.url || '');
   if (!ckanResourceId) {
-    throw new Error('Resource does not include a CKAN resource UUID in URL');
+    throw new Error('Resource does not include a CKAN resource UUID (resource_id/url)');
   }
 
   return {

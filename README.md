@@ -242,47 +242,104 @@ Fetch live rows from CKAN for a resource.
 └── README.md                  ← This file
 ```
 
-## Supabase Schema (Expected)
+## Supabase Schema (Current Snapshot)
 
-Your Supabase instance should have these tables (already populated from your CSV):
+The production import contains CKAN-style metadata with many text columns. The app currently relies on these core tables and relations.
+
+### Table Relationships
+
+```text
+datasets._link (PK)
+  -> resources._link_main (FK)
+
+resources._link (PK)
+  -> datastore_fields._link_resources (FK)
+  -> resource_views._link_resources (FK)
+```
 
 ### `datasets`
-```sql
-CREATE TABLE datasets (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT,
-  organization TEXT,
-  metadata_modified TIMESTAMP,
-  keywords TEXT[],
-  resource_count INT,
-  -- ... other fields
-);
-```
+
+Primary key:
+- `_link`
+
+App-critical columns:
+- `id`
+- `title_translated_en`
+- `notes_translated_en`
+- `organization_title`
+- `organization_name`
+- `metadata_modified`
+- `date_modified`
+- `url`
+
+Also present (non-exhaustive metadata examples):
+- `date_created`, `date_published`, `portal_release_date`
+- `keywords_en`, `keywords_fr`
+- `title_translated_fr`, `notes_translated_fr`
+- `license_title`, `license_url`
+- `organization_id`, `organization_type`
+- `num_resources`, `subject`, `status`, `spatial`
 
 ### `resources`
-```sql
-CREATE TABLE resources (
-  id TEXT PRIMARY KEY,
-  package_id TEXT REFERENCES datasets(id),
-  name TEXT,
-  format TEXT,
-  url TEXT,
-  created TIMESTAMP,
-  last_modified TIMESTAMP,
-  -- ... other fields
-);
-```
 
-### `datastore_fields` (optional)
-```sql
-CREATE TABLE datastore_fields (
-  id TEXT PRIMARY KEY,
-  resource_id TEXT REFERENCES resources(id),
-  name TEXT,
-  type TEXT
-);
-```
+Primary key:
+- `_link`
+
+Foreign key:
+- `_link_main -> datasets._link`
+
+App-critical columns:
+- `id`
+- `resource_id` (CKAN resource UUID used for `datastore_search`)
+- `name`
+- `format`
+- `url`
+- `size`
+- `datastore_active`
+- `metadata_modified`
+- `created`
+- `last_modified`
+
+Other useful columns:
+- `package_id`
+- `resource_type`
+- `resource_group_id`
+- `state`
+- `validation_status`
+
+### `datastore_fields`
+
+Primary key:
+- `_link`
+
+Foreign key:
+- `_link_resources -> resources._link`
+
+App-critical columns:
+- `id` (column name in datastore)
+- `type`
+- `info_label_en`, `info_label_fr`
+
+### `resource_views`
+
+Primary key:
+- `_link`
+
+Foreign key:
+- `_link_resources -> resources._link`
+
+App-critical columns:
+- `view_type`
+- `resource_id`
+- `package_id`
+- `title`, `title_fr`
+
+### Notes For API Implementation
+
+- Preview endpoint should prefer `resources.resource_id` for CKAN `datastore_search`.
+- `resources._link` and `resources.id` are internal metadata identifiers and may not be valid CKAN UUIDs.
+- `datastore_active = 'true'` is a strong signal that live preview is available.
+- Avoid ambiguous automatic relation embedding when multiple FK paths exist; explicit table queries are safer.
 
 ## Performance & Optimization
 
