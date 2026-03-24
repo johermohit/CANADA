@@ -236,14 +236,7 @@ export async function searchDatasets(filters: {
 
   let query = client
     .from('datasets')
-    .select(
-      `_link, id, title_translated_en, notes_translated_en, url,
-       resources(_link, _link_main, id, name, format, url, size,
-         datastore_fields(_link, _link_resources, id),
-         resource_views(_link, _link_resources, view_type)
-       )`,
-      { count: 'exact' }
-    )
+    .select('_link, id, title_translated_en, notes_translated_en, url', { count: 'exact' })
     .range(offset, offset + limit - 1);
 
   // Match ANY search token (OR semantics) in title_translated_en.
@@ -259,15 +252,12 @@ export async function searchDatasets(filters: {
   }
 
   const datasetRows = (data || []) as DatasetRow[];
+  const datasetLinks = datasetRows.map((row) => text(row._link)).filter(Boolean);
+  const { resourcesByDataset } = await fetchResourcesWithMetadata(client, datasetLinks);
 
   let normalized = datasetRows.map((row) => {
-    const joinedResources = ((row.resources || []) as ResourceRow[]).map((resource) =>
-      normalizeResource(
-        resource,
-        ((resource as any).datastore_fields || []) as DatastoreFieldRow[],
-        ((resource as any).resource_views || []) as ResourceViewRow[]
-      )
-    );
+    const datasetLink = text(row._link);
+    const joinedResources = resourcesByDataset.get(datasetLink) || [];
 
     return {
       ...normalizeDatasetSummary(row, joinedResources),
