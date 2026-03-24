@@ -39,7 +39,7 @@ function text(value: unknown): string {
   return '';
 }
 
-function normalizeDataset(row: DatasetRow, resources: ResourceRow[]) {
+function normalizeDatasetSummary(row: DatasetRow, resources: Array<{ format?: string }>) {
   const resourceCount = resources.length;
   const formats = Array.from(
     new Set(resources.map((resource) => text(resource.format).toUpperCase()).filter(Boolean))
@@ -53,7 +53,6 @@ function normalizeDataset(row: DatasetRow, resources: ResourceRow[]) {
     metadata_modified: new Date().toISOString(),
     resource_count: resourceCount,
     formats,
-    resources,
   };
 }
 
@@ -168,6 +167,32 @@ async function fetchResourcesWithMetadata(client: ReturnType<typeof createClient
   return { resourcesByDataset };
 }
 
+async function fetchResourceSummaries(client: ReturnType<typeof createClient>, datasetLinks: string[]) {
+  if (!datasetLinks.length) {
+    return new Map<string, Array<{ format?: string }>>();
+  }
+
+  const { data, error } = await client
+    .from('resources')
+    .select('_link_main, format')
+    .in('_link_main', datasetLinks);
+
+  if (error) {
+    throw new Error(`Supabase resources query error: ${error.message}`);
+  }
+
+  const byDataset = new Map<string, Array<{ format?: string }>>();
+  ((data || []) as Array<{ _link_main?: string; format?: string }>).forEach((row) => {
+    const datasetLink = text(row._link_main);
+    if (!datasetLink) return;
+    const current = byDataset.get(datasetLink) || [];
+    current.push({ format: row.format });
+    byDataset.set(datasetLink, current);
+  });
+
+  return byDataset;
+}
+
 /**
  * Search datasets using the real schema:
  * datasets(_link) -> resources(_link_main) -> datastore_fields/resource_views(_link_resources)
@@ -204,18 +229,18 @@ export async function searchDatasets(filters: {
   const datasetRows = (data || []) as DatasetRow[];
   const datasetLinks = datasetRows.map((row) => text(row._link)).filter(Boolean);
 
-  const { resourcesByDataset } = await fetchResourcesWithMetadata(client, datasetLinks);
+  const resourcesByDataset = await fetchResourceSummaries(client, datasetLinks);
 
   let normalized = datasetRows.map((row) => {
     const datasetLink = text(row._link);
     const resources = resourcesByDataset.get(datasetLink) || [];
-    return normalizeDataset(row, resources);
+    return normalizeDatasetSummary(row, resources);
   });
 
   if (formats.length > 0) {
     const requested = new Set(formats.map((format) => format.toUpperCase()));
     normalized = normalized.filter((dataset) =>
-      dataset.resources.some((resource: any) => requested.has(text(resource.format).toUpperCase()))
+      dataset.formats.some((format) => requested.has(format.toUpperCase()))
     );
   }
 
@@ -246,7 +271,12 @@ export async function getDataset(datasetId: string) {
   const datasetLink = text(datasetRow._link);
   const { resourcesByDataset } = await fetchResourcesWithMetadata(client, datasetLink ? [datasetLink] : []);
 
-  return normalizeDataset(datasetRow, resourcesByDataset.get(datasetLink) || []);
+  const detailedResources = resourcesByDataset.get(datasetLink) || [];
+
+  return {
+    ...normalizeDatasetSummary(datasetRow, detailedResources),
+    resources: detailedResources,
+  };
 }
 
 /**
