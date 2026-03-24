@@ -4,7 +4,7 @@
  */
 
 import { PreviewRequest, PreviewResponse } from '../src/lib/types';
-import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, validateEnv } from './utils.js';
+import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, parseRequestBody, validateEnv } from './utils.js';
 
 const PREVIEWABLE_FORMATS = ['CSV', 'JSON', 'GEOJSON'];
 const CKAN_TIMEOUT_MS = 5000;
@@ -56,7 +56,7 @@ export default async function handler(req: any) {
   try {
     const startedAt = Date.now();
     logApiInfo({ requestId, route, method: req.method, message: 'preview request received' });
-    const body: PreviewRequest = JSON.parse(req.body || '{}');
+    const body: PreviewRequest = parseRequestBody<PreviewRequest>(req.body);
     const { resource_id, limit = 50 } = body;
 
     if (!resource_id) {

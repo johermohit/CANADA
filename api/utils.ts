@@ -68,6 +68,26 @@ export function validateEnv(key: string): string {
   return value;
 }
 
+export function parseRequestBody<T>(body: unknown): T {
+  if (body == null) {
+    return {} as T;
+  }
+
+  if (typeof body === 'string') {
+    if (!body.trim()) {
+      return {} as T;
+    }
+
+    return JSON.parse(body) as T;
+  }
+
+  if (typeof body === 'object') {
+    return body as T;
+  }
+
+  return {} as T;
+}
+
 export function corsHeaders(origin?: string) {
   const allowedOrigins = (process.env.APP_ORIGIN || 'http://localhost:5173').split(',');
   const allowOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];

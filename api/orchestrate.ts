@@ -6,7 +6,7 @@
 
 import { OrchestrateRequest, OrchestrateResponse, FilterState } from '../src/lib/types';
 import { searchDatasets, getOrganizations, getAvailableFormats } from './supabase.js';
-import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo } from './utils.js';
+import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, parseRequestBody } from './utils.js';
 
 // Simple intent parser (can be replaced with LLM call)
 function parseIntent(prompt: string): FilterState {
@@ -80,7 +80,7 @@ export default async function handler(req: any) {
   try {
     const startedAt = Date.now();
     logApiInfo({ requestId, route, method: req.method, message: 'orchestrate request received' });
-    const body: OrchestrateRequest = JSON.parse(req.body || '{}');
+    const body: OrchestrateRequest = parseRequestBody<OrchestrateRequest>(req.body);
 
     if (!body.prompt || typeof body.prompt !== 'string') {
       const { error, status } = createErrorResponse(

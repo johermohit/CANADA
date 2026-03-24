@@ -5,7 +5,7 @@
 
 import { SearchQuery, SearchResponse } from '../src/lib/types';
 import { searchDatasets, getOrganizations, getAvailableFormats } from './supabase.js';
-import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo } from './utils.js';
+import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, parseRequestBody } from './utils.js';
 
 export default async function handler(req: any) {
   const requestId = req.headers['x-request-id'] || `req_${Date.now()}`;
@@ -23,7 +23,7 @@ export default async function handler(req: any) {
   try {
     const startedAt = Date.now();
     logApiInfo({ requestId, route, method: req.method, message: 'search request received' });
-    const body: SearchQuery = JSON.parse(req.body || '{}');
+    const body: SearchQuery = parseRequestBody<SearchQuery>(req.body);
 
     if (!body.intent || typeof body.intent !== 'string') {
       const { error, status } = createErrorResponse('INVALID_REQUEST', 'Missing or invalid intent field', 400, requestId);
