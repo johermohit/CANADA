@@ -16,6 +16,7 @@ export interface DiscoveryState {
 
   // Actions
   setDatasets: (datasets: Dataset[]) => void;
+  setTotal: (total: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setFilters: (filters: FilterState) => void;
@@ -42,6 +43,7 @@ export const useDiscoveryStore = create<DiscoveryState>((set) => ({
   ...initialState,
 
   setDatasets: (datasets) => set({ datasets }),
+  setTotal: (total) => set({ total }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
 

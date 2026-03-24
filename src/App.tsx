@@ -9,7 +9,7 @@ import { apiClient } from '@/lib/api';
 import { SearchInput } from './components/SearchInput';
 import { DatasetCard } from './components/DatasetCard';
 import { FilterPanel } from './components/FilterPanel';
-import { Settings } from 'lucide-react';
+import { AlertTriangle, Settings } from 'lucide-react';
 import clsx from 'clsx';
 
 export const App: React.FC = () => {
@@ -31,6 +31,7 @@ export const App: React.FC = () => {
     toggleFilters,
     setLoading,
     setDatasets,
+    setTotal,
     setError,
   } = useDiscoveryStore();
 
@@ -52,7 +53,9 @@ export const App: React.FC = () => {
     try {
       const response = await apiClient.orchestrate({ prompt: intent });
       setDatasets(response.results.datasets);
+      setTotal(response.results.total);
     } catch (err: any) {
+      console.error('Search request failed', err);
       setError(err.message || 'Search failed');
     } finally {
       setLoading(false);
@@ -123,7 +126,20 @@ export const App: React.FC = () => {
           <div className={clsx('lg:col-span-3')}>
             {error && (
               <div className="card bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 p-4 mb-4">
-                <p className="text-danger-800 dark:text-danger-300 text-sm">{error}</p>
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-danger-600 dark:text-danger-300 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-danger-900 dark:text-danger-100 text-sm font-medium">
+                      Search could not complete
+                    </p>
+                    <p className="text-danger-800 dark:text-danger-300 text-sm mt-1 break-words">
+                      {error}
+                    </p>
+                    <p className="text-danger-700 dark:text-danger-400 text-xs mt-2">
+                      Check Vercel function logs if this is production, or run `vercel dev` locally.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 

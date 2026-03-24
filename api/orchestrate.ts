@@ -6,7 +6,7 @@
 
 import { OrchestrateRequest, OrchestrateResponse, FilterState } from '../src/lib/types';
 import { searchDatasets, getOrganizations, getAvailableFormats } from './supabase';
-import { createErrorResponse, corsHeaders } from './utils';
+import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo } from './utils';
 
 // Simple intent parser (can be replaced with LLM call)
 function parseIntent(prompt: string): FilterState {
@@ -66,6 +66,7 @@ function parseIntent(prompt: string): FilterState {
 
 export default async function handler(req: any) {
   const requestId = req.headers['x-request-id'] || `req_${Date.now()}`;
+  const route = '/api/orchestrate';
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders(req.headers.origin) });
@@ -77,6 +78,8 @@ export default async function handler(req: any) {
   }
 
   try {
+    const startedAt = Date.now();
+    logApiInfo({ requestId, route, method: req.method, message: 'orchestrate request received' });
     const body: OrchestrateRequest = JSON.parse(req.body || '{}');
 
     if (!body.prompt || typeof body.prompt !== 'string') {
@@ -129,6 +132,14 @@ export default async function handler(req: any) {
       execution_time_ms: executionTime,
     };
 
+    logApiInfo({
+      requestId,
+      route,
+      method: req.method,
+      message: 'orchestrate completed',
+      extra: { duration_ms: Date.now() - startedAt, total, datasets: datasets.length },
+    });
+
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: {
@@ -137,9 +148,16 @@ export default async function handler(req: any) {
       },
     });
   } catch (error: any) {
+    logApiError({
+      requestId,
+      route,
+      method: req.method,
+      message: 'orchestrate failed',
+      error,
+    });
     const { error: errResponse, status } = createErrorResponse(
       'ORCHESTRATE_ERROR',
-      error?.message || 'Orchestration failed',
+      getErrorMessage(error) || 'Orchestration failed',
       500,
       requestId
     );

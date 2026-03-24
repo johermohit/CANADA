@@ -5,7 +5,7 @@
 
 import { PreviewRequest, PreviewResponse } from '../src/lib/types';
 import { getDataset } from './supabase';
-import { createErrorResponse, corsHeaders, validateEnv } from './utils';
+import { createErrorResponse, corsHeaders, getErrorMessage, logApiError, logApiInfo, validateEnv } from './utils';
 
 const PREVIEWABLE_FORMATS = ['CSV', 'JSON', 'GEOJSON'];
 const CKAN_TIMEOUT_MS = 5000;
@@ -43,6 +43,7 @@ async function fetchCKANPreview(resourceId: string, limit: number) {
 
 export default async function handler(req: any) {
   const requestId = req.headers['x-request-id'] || `req_${Date.now()}`;
+  const route = '/api/preview';
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders(req.headers.origin) });
@@ -54,6 +55,8 @@ export default async function handler(req: any) {
   }
 
   try {
+    const startedAt = Date.now();
+    logApiInfo({ requestId, route, method: req.method, message: 'preview request received' });
     const body: PreviewRequest = JSON.parse(req.body || '{}');
     const { resource_id, limit = 50 } = body;
 
@@ -89,6 +92,14 @@ export default async function handler(req: any) {
       },
     };
 
+    logApiInfo({
+      requestId,
+      route,
+      method: req.method,
+      message: 'preview completed',
+      extra: { duration_ms: Date.now() - startedAt, resource_id, limit },
+    });
+
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: {
@@ -98,6 +109,13 @@ export default async function handler(req: any) {
     });
   } catch (error: any) {
     if (error.name === 'AbortError') {
+      logApiError({
+        requestId,
+        route,
+        method: req.method,
+        message: 'preview timed out',
+        error,
+      });
       const { error: errResponse, status } = createErrorResponse(
         'PREVIEW_TIMEOUT',
         'Preview fetch timed out',
@@ -111,9 +129,16 @@ export default async function handler(req: any) {
     }
 
     // Return graceful fallback
+    logApiError({
+      requestId,
+      route,
+      method: req.method,
+      message: 'preview fallback used',
+      error,
+    });
     const response: PreviewResponse = {
       success: false,
-      error: error?.message || 'Preview unavailable',
+      error: getErrorMessage(error) || 'Preview unavailable',
       fallback_url: 'https://open.canada.ca/data',
     };
 

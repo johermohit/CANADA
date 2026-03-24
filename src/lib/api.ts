@@ -1,6 +1,28 @@
 import { OrchestrateRequest, OrchestrateResponse, SearchQuery, SearchResponse, PreviewRequest, PreviewResponse, ApiError } from './types';
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const apiBase =
+  import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:3000' : '');
+
+function formatApiError(endpoint: string, status: number, payload?: Partial<ApiError> & { error?: string }) {
+  const code = payload?.code || `HTTP_${status}`;
+  const message = payload?.message || payload?.error || `Request failed with status ${status}`;
+  const requestId = payload?.request_id ? ` (request ${payload.request_id})` : '';
+  return `${endpoint} failed: ${message} [${code}]${requestId}`;
+}
+
+async function readErrorPayload(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    return { message: text || response.statusText };
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return { message: response.statusText };
+  }
+}
 
 class ApiClient {
   private baseUrl: string;
@@ -16,14 +38,27 @@ class ApiClient {
       ...options.headers,
     };
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch (error: any) {
+      const hint = import.meta.env.DEV
+        ? 'If you are in local dev, run `vercel dev` or point VITE_API_BASE_URL at the API server.'
+        : 'Check your deployed Vercel API routes and env vars.';
+      throw new Error(`Network error calling ${endpoint} at ${url}. ${hint}`);
+    }
 
     if (!response.ok) {
-      const error: ApiError = await response.json();
-      throw new Error(`API Error: ${error.message} (${error.code})`);
+      const error = (await readErrorPayload(response)) as Partial<ApiError> & { error?: string };
+      throw new Error(formatApiError(endpoint, response.status, error));
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return (await response.text()) as T;
     }
 
     return response.json();

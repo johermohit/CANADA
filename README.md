@@ -56,7 +56,7 @@ Edit `.env.local`:
 # Public (exposed in Vite bundle via VITE_ prefix)
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGc...
-VITE_API_BASE_URL=http://localhost:3000  # For dev; Vercel URL for prod
+VITE_API_BASE_URL=http://localhost:3000  # For dev only; production can use same-origin
 
 # Server-only (Vercel env or .env.local, NEVER client-side)
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
@@ -64,12 +64,30 @@ OPENAI_API_KEY=sk-...  (optional, for future LLM intent parsing)
 CKAN_API_URL=https://open.canada.ca/data/api/3
 APP_ORIGIN=http://localhost:5173  # Your app's origin for CORS
 
-# Security
-JWT_SECRET=your-min-32-character-secret-key
+# Supabase now uses signing keys internally; this app does not need a legacy JWT secret.
+# If another backend component needs JWT verification, use the current Supabase signing-key flow.
 
 # Node env
 NODE_ENV=development
 ```
+
+### Vercel Environment Checklist
+
+Keep these in your Vercel project for this repo:
+
+- `SUPABASE_URL` or `VITE_SUPABASE_URL`
+- `SUPABASE_ANON_KEY` or `VITE_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CKAN_API_URL`
+- `APP_ORIGIN`
+- `OPENAI_API_KEY` only if you actually use it in server code
+
+You can remove these from this repo's Vercel envs unless another service needs them:
+
+- `JWT_SECRET`
+- `SUPABASE_JWT_SECRET`
+- `NEXT_PUBLIC_SUPABASE_*`
+- `POSTGRES_*` unless you directly connect to Postgres/Prisma from new code
 
 ### 2. Install Dependencies
 
@@ -96,7 +114,7 @@ Open `http://localhost:5173` and start searching!
 
 1. Push to GitHub
 2. Connect repo to Vercel dashboard
-3. Set environment variables in Vercel project settings (same keys as `.env.example`, but use @ syntax in System env vars)
+3. Set environment variables in Vercel project settings (same keys as `.env.example`)
 4. Deploy:
 
 ```bash

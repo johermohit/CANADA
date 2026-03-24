@@ -19,6 +19,43 @@ export function createErrorResponse(
   };
 }
 
+export function logApiInfo(context: {
+  requestId: string;
+  route: string;
+  method?: string;
+  message: string;
+  extra?: Record<string, unknown>;
+}) {
+  console.info(JSON.stringify({ level: 'info', ...context, timestamp: new Date().toISOString() }));
+}
+
+export function logApiError(context: {
+  requestId: string;
+  route: string;
+  method?: string;
+  message: string;
+  error?: unknown;
+  extra?: Record<string, unknown>;
+}) {
+  const error = context.error instanceof Error
+    ? { name: context.error.name, message: context.error.message, stack: context.error.stack }
+    : context.error;
+
+  console.error(
+    JSON.stringify({ level: 'error', ...context, error, timestamp: new Date().toISOString() })
+  );
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
 export function generateRequestId(): string {
   return `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 }
