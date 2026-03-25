@@ -306,7 +306,7 @@ export async function searchDatasets(filters: {
 
   let query = client
     .from('datasets')
-    .select('_link, id, title_translated_en, notes_translated_en, url, organization_title, organization_name, metadata_modified, date_modified, jurisdiction, subject, frequency, collection, language, keywords_en', { count: 'exact' })
+    .select('_link, id, title_translated_en, notes_translated_en, url, organization_title, organization_name, metadata_modified, date_modified, jurisdiction, subject, frequency, collection, keywords_en', { count: 'exact' })
     .range(offset, offset + limit - 1);
 
   // Match ANY search token (OR semantics) in title_translated_en.
@@ -409,7 +409,7 @@ export async function getDataset(datasetId: string) {
 
   const { data, error } = await client
     .from('datasets')
-    .select('_link, id, title_translated_en, notes_translated_en, url, organization_title, organization_name, metadata_modified, date_modified, jurisdiction, subject, frequency, collection, language, keywords_en')
+    .select('_link, id, title_translated_en, notes_translated_en, url, organization_title, organization_name, metadata_modified, date_modified, jurisdiction, subject, frequency, collection, keywords_en')
     .or(`_link.eq.${datasetId},id.eq.${datasetId}`)
     .limit(1)
     .maybeSingle();
@@ -570,17 +570,10 @@ export async function getResourceTypes() {
 
 export async function getLanguages() {
   const client = getSupabaseClient();
-  const [dsetRes, resRes] = await Promise.all([
-    client.from('datasets').select('language').not('language', 'is', null),
-    client.from('resources').select('language').not('language', 'is', null),
-  ]);
+  const { data, error } = await client.from('resources').select('language').not('language', 'is', null);
+  if (error) return [];
   const map = new Map<string, number>();
-  ((dsetRes.data || []) as any[]).forEach((row) => {
-    const v = text(row.language).trim();
-    if (!v) return;
-    map.set(v, (map.get(v) || 0) + 1);
-  });
-  ((resRes.data || []) as any[]).forEach((row) => {
+  ((data || []) as any[]).forEach((row) => {
     const v = text(row.language).trim();
     if (!v) return;
     map.set(v, (map.get(v) || 0) + 1);
