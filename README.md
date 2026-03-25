@@ -289,8 +289,8 @@ Foreign key:
 - `_link_main -> datasets._link`
 
 App-critical columns:
-- `id`
-- `resource_id` (CKAN resource UUID used for `datastore_search`)
+- `id` (CKAN resource UUID used for `datastore_search` — primary CKAN identifier)
+- `resource_id` (legacy/deprecated; often empty; use `id` instead)
 - `name`
 - `format`
 - `url`
@@ -336,8 +336,9 @@ App-critical columns:
 
 ### Notes For API Implementation
 
-- Preview endpoint should prefer `resources.resource_id` for CKAN `datastore_search`.
-- `resources._link` and `resources.id` are internal metadata identifiers and may not be valid CKAN UUIDs.
+- Preview endpoint uses `resources.id` as the primary CKAN UUID for `datastore_search`.
+- Fallback to URL extraction only if `id` is missing.
+- `resources._link_main` is an internal metadata identifier; `resource_id` is often empty/unreliable.
 - `datastore_active = 'true'` is a strong signal that live preview is available.
 - Avoid ambiguous automatic relation embedding when multiple FK paths exist; explicit table queries are safer.
 

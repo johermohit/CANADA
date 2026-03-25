@@ -85,9 +85,9 @@ async function resolvePreviewResource(resourceId: string) {
     throw new Error('Resource datastore is not active for CKAN preview');
   }
 
-  const ckanResourceId = row.resource_id || extractResourceUuidFromUrl(row.url || '');
+  const ckanResourceId = row.id || extractResourceUuidFromUrl(row.url || '');
   if (!ckanResourceId) {
-    throw new Error('Resource does not include a CKAN resource UUID (resource_id/url)');
+    throw new Error('Resource does not include a CKAN resource UUID (id/url)');
   }
 
   return {

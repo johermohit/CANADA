@@ -86,7 +86,7 @@ function normalizeResource(
 ) {
   const url = text(row.url);
   const ckanResourceIdMatch = url.match(/\/resource\/([0-9a-fA-F-]{36})\b/);
-  const ckanResourceId = text(row.resource_id) || ckanResourceIdMatch?.[1] || '';
+  const ckanResourceId = text(row.id) || ckanResourceIdMatch?.[1] || '';
 
   return {
     id: text(row._link) || text(row.id),

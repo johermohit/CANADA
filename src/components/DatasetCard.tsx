@@ -155,20 +155,40 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
                 </div>
 
                 <div className="mt-3 flex items-center gap-2">
-                  <button
-                    className="btn-primary text-xs"
-                    onClick={() => loadPreview(resource.id, resource.ckan_resource_id || resource.id)}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Loading...
-                      </span>
-                    ) : (
-                      'View Details'
-                    )}
-                  </button>
+                  {resource.datastore_active ? (
+                    <button
+                      className="btn-primary text-xs"
+                      onClick={() => loadPreview(resource.id, resource.ckan_resource_id || resource.id)}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Loading...
+                        </span>
+                      ) : (
+                        'View Details'
+                      )}
+                    </button>
+                  ) : resource.format && ['WMS', 'ESRI REST', 'GEOJSON'].includes(resource.format) ? (
+                    <a
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-secondary text-xs"
+                    >
+                      Map View
+                    </a>
+                  ) : (
+                    <a
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-secondary text-xs"
+                    >
+                      Download
+                    </a>
+                  )}
                 </div>
 
                 {previewErrorsByResource[resource.id] && (
