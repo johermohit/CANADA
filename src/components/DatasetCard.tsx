@@ -76,74 +76,75 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
   return (
     <div
       className={clsx(
-        'card p-4 cursor-pointer transition-all animate-slide-up',
-        isActive && 'ring-2 ring-primary-500 shadow-card-hover'
+        'card p-5 sm:p-6 cursor-pointer transition-all animate-slide-up',
+        isActive && 'ring-2 ring-[color:var(--primary)] shadow-[0_16px_34px_-12px_rgba(0,60,107,0.35)]'
       )}
       onClick={() => selectDataset(isActive ? null : dataset.id)}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50 line-clamp-2 hover:text-primary-600 dark:hover:text-primary-400">
+          <p className="label-md mb-1">Dataset</p>
+          <h3 className="text-xl sm:text-2xl font-bold text-[color:var(--on-surface)] tracking-tight line-clamp-2 hover:text-[color:var(--primary-container)]">
             {dataset.title}
           </h3>
         </div>
-        <ChevronDown
-          className={clsx(
-            'w-5 h-5 text-gray-400 transition-transform flex-shrink-0',
-            isActive && 'rotate-180'
-          )}
-        />
+        <div className="text-right flex-shrink-0">
+          <p className="label-md">Impactful Resources</p>
+          <p className="metric-value mt-1">{dataset.resource_count}</p>
+          <ChevronDown
+            className={clsx(
+              'w-5 h-5 ml-auto mt-2 text-[color:var(--on-surface-variant)] transition-transform',
+              isActive && 'rotate-180'
+            )}
+          />
+        </div>
       </div>
 
-      {/* Description */}
       {dataset.description && (
-        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{dataset.description}</p>
+        <p className="text-sm sm:text-[0.95rem] text-[color:var(--on-surface-variant)] leading-relaxed line-clamp-3 mb-4 max-w-3xl">
+          {dataset.description}
+        </p>
       )}
 
-      {/* Metadata row */}
-      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500 mb-3">
-        <div className="flex items-center gap-1">
-          <FileText className="w-4 h-4" />
+      <div className="flex flex-wrap items-center gap-3 text-xs mb-4">
+        <div className="chip-base chip-filter">
+          <FileText className="w-3.5 h-3.5" />
           <span>{dataset.resource_count} resource{dataset.resource_count !== 1 ? 's' : ''}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Calendar className="w-4 h-4" />
-          <span>{modifiedLabel}</span>
+        <div className="chip-base chip-filter">
+          <Calendar className="w-3.5 h-3.5" />
+          <span>Updated {modifiedLabel}</span>
         </div>
       </div>
 
-      {/* Quick Look badges */}
       {formatBadges.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Available in:</span>
+        <div className="flex items-center gap-2 flex-wrap mb-4">
+          <span className="label-md">Available in</span>
           {formatBadges.slice(0, 4).map((fmt) => (
-            <span key={fmt} className="badge-primary text-xs">
+            <span key={fmt} className="chip-base chip-filter">
               {fmt}
             </span>
           ))}
           {formatBadges.length > 4 && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">+{formatBadges.length - 4}</span>
+            <span className="chip-base chip-discovery">+{formatBadges.length - 4}</span>
           )}
         </div>
       )}
 
-      {/* Publisher chip */}
       {dataset.organization && (
-        <div className="flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-800">
-          <Building2 className="w-4 h-4 text-gray-400" />
-          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{dataset.organization}</span>
+        <div className="inline-flex items-center gap-2 rounded-full bg-[color:var(--primary-fixed-dim)] px-3 py-1.5 mb-2">
+          <Building2 className="w-4 h-4 text-[color:var(--primary)]" />
+          <span className="text-xs font-semibold text-[color:var(--primary)]">{dataset.organization}</span>
         </div>
       )}
 
-      {/* Expanded state */}
       {isActive && (
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 animate-fade-in space-y-3">
+        <div className="mt-5 animate-fade-in space-y-4 bg-[color:var(--surface-container-low)] rounded-2xl p-4 sm:p-5">
           <div className="flex justify-end">
-            <button onClick={handleMoreLike} className="btn-ghost text-sm">More Like This</button>
+            <button onClick={handleMoreLike} className="btn-tertiary text-sm">More Like This</button>
           </div>
           {resources.length === 0 && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">No linked resources available for this dataset.</p>
+            <p className="text-sm text-[color:var(--on-surface-variant)]">No linked resources available for this dataset.</p>
           )}
 
           {resources.map((resource) => {
@@ -153,14 +154,14 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
             return (
               <div
                 key={resource.id}
-                className="rounded-lg border border-gray-200 dark:border-gray-800 p-3"
+                className="rounded-2xl bg-[color:var(--surface-container-lowest)] p-4 outline outline-1 outline-[color:var(--outline-variant)]"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-50 truncate">{resource.name || 'Unnamed resource'}</p>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                      <span className="badge-primary">{resource.format || 'UNKNOWN'}</span>
+                    <p className="text-sm font-semibold text-[color:var(--on-surface)] truncate">{resource.name || 'Unnamed resource'}</p>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-[color:var(--on-surface-variant)] flex-wrap">
+                      <span className="chip-base chip-filter">{resource.format || 'UNKNOWN'}</span>
                       {resource.size && <span>{resource.size}</span>}
                       {!!resource.datastore_fields?.length && <span>{resource.datastore_fields.length} columns</span>}
                     </div>
@@ -217,20 +218,20 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
                 </div>
 
                 {previewErrorsByResource[resource.id] && (
-                  <p className="mt-2 text-xs text-danger-700 dark:text-danger-300">{previewErrorsByResource[resource.id]}</p>
+                  <p className="mt-2 text-xs text-[color:var(--tertiary)]">{previewErrorsByResource[resource.id]}</p>
                 )}
 
                 {preview && (
-                  <div className="mt-3 rounded border border-gray-200 dark:border-gray-800 overflow-x-auto">
+                  <div className="mt-3 viz-surface overflow-x-auto">
                     {preview.success && preview.preview ? (
                       (() => {
                         const previewData = preview.preview;
                         return (
                       <table className="w-full text-xs">
-                        <thead className="bg-gray-50 dark:bg-gray-900/40">
+                        <thead className="bg-[color:var(--surface-container-high)]">
                           <tr>
                             {previewData.columns.slice(0, 6).map((column) => (
-                              <th key={column} className="text-left px-2 py-1 font-medium text-gray-700 dark:text-gray-300">
+                              <th key={column} className="text-left px-2 py-1.5 font-medium text-[color:var(--on-surface)]">
                                 {column}
                               </th>
                             ))}
@@ -238,9 +239,9 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
                         </thead>
                         <tbody>
                           {previewData.rows.slice(0, 5).map((row, index) => (
-                            <tr key={`${resource.id}-row-${index}`} className="border-t border-gray-100 dark:border-gray-800">
+                            <tr key={`${resource.id}-row-${index}`} className="even:bg-[color:var(--surface)]">
                               {previewData.columns.slice(0, 6).map((column) => (
-                                <td key={`${resource.id}-${column}-${index}`} className="px-2 py-1 text-gray-600 dark:text-gray-400">
+                                <td key={`${resource.id}-${column}-${index}`} className="px-2 py-1.5 text-[color:var(--on-surface-variant)]">
                                   {String((row as Record<string, unknown>)[column] ?? '')}
                                 </td>
                               ))}
@@ -252,13 +253,13 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
                       })()
                     ) : (
                       <div className="p-2">
-                        <p className="text-xs text-gray-600 dark:text-gray-400">{preview.error || 'Preview unavailable for this resource.'}</p>
+                        <p className="text-xs text-[color:var(--on-surface-variant)]">{preview.error || 'Preview unavailable for this resource.'}</p>
                         {preview.fallback_url && (
                           <a
                             href={preview.fallback_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-primary-600 dark:text-primary-400"
+                            className="text-xs text-[color:var(--primary)]"
                           >
                             Open fallback page
                           </a>

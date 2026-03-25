@@ -36,8 +36,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={placeholder}
           className={clsx(
-            'input-field pl-12 pr-12 py-3 text-base',
-            'placeholder:text-gray-500 dark:placeholder:text-gray-400'
+            'input-field pl-14 pr-28'
           )}
           disabled={isLoading}
           autoFocus
@@ -46,7 +45,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         <Search
           className={clsx(
             'w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2',
-            'text-gray-400 dark:text-gray-600 pointer-events-none'
+            'text-[color:var(--secondary)] pointer-events-none'
           )}
         />
 
@@ -54,15 +53,15 @@ export const SearchInput: React.FC<SearchInputProps> = ({
           type="submit"
           disabled={isLoading || !query.trim()}
           className={clsx(
-            'absolute right-2 top-1/2 -translate-y-1/2 p-2',
-            'text-gray-400 hover:text-primary-600 transition-colors',
-            'disabled:opacity-50 disabled:cursor-not-allowed'
+            'absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-xl text-sm font-semibold',
+            'bg-[color:var(--primary)] text-white transition-colors',
+            'hover:bg-[color:var(--primary-container)] disabled:opacity-55 disabled:cursor-not-allowed'
           )}
         >
           {isLoading ? (
             <Loader className="w-5 h-5 animate-spin" />
           ) : (
-            <span className="text-sm font-medium">Search</span>
+            <span>Explore</span>
           )}
         </button>
       </div>

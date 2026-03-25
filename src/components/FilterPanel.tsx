@@ -80,34 +80,34 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
     const isExpanded = expandedSections.has(sectionKey);
 
     return (
-      <div className="border-b border-gray-200 dark:border-gray-800 py-4">
+      <div className="rounded-2xl bg-[color:var(--surface-container-lowest)] p-4">
         <button
           onClick={() => toggleSection(sectionKey)}
-          className="flex items-center justify-between w-full hover:bg-gray-50 dark:hover:bg-gray-900/30 p-2 -m-2 rounded transition-colors"
+          className="flex items-center justify-between w-full px-2 py-1 rounded-lg transition-colors hover:bg-[color:var(--surface-container-low)]"
         >
-          <h3 className="font-semibold text-gray-900 dark:text-gray-50">{title}</h3>
+          <h3 className="font-semibold text-[color:var(--on-surface)] tracking-tight">{title}</h3>
           <ChevronDown
-            className={clsx('w-4 h-4 text-gray-400 transition-transform', isExpanded && 'rotate-180')}
+            className={clsx('w-4 h-4 text-[color:var(--on-surface-variant)] transition-transform', isExpanded && 'rotate-180')}
           />
         </button>
 
         {isExpanded && (
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 space-y-2.5">
             {items.map((item: any) => {
               const display = item.label;
               const value = item.value ?? item.label;
               return (
-                <label key={String(value)} className="flex items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/30 p-2 -m-2 rounded transition-colors">
+                <label key={String(value)} className="flex items-center cursor-pointer rounded-xl px-2 py-1.5 transition-colors hover:bg-[color:var(--surface-container-low)]">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-primary-500 rounded focus:ring-2 focus:ring-primary-500"
+                    className="w-4 h-4 rounded focus:ring-2 focus:ring-[color:var(--primary)]"
                     checked={isChecked(filterKey, value)}
                     onChange={(e) => {
                       toggleFilter(filterKey, value, e.target.checked);
                     }}
                   />
-                  <span className="ml-2 text-sm text-gray-700 dark:text-gray-300 flex-1">{display}</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-500">{item.count}</span>
+                  <span className="ml-2 text-sm text-[color:var(--on-surface)] flex-1">{display}</span>
+                  <span className="chip-base chip-filter !px-2.5 !py-1">{item.count}</span>
                 </label>
               );
             })}
@@ -120,7 +120,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
   const SubjectSection = ({ items }: { items: Array<{ label: string; count: number }> }) => {
     const top = items.slice(0, 8);
     return (
-      <div className="border-b border-gray-200 dark:border-gray-800 py-4">
+      <div className="rounded-2xl bg-[color:var(--surface-container-lowest)] p-4">
         <div className="mb-2">
           <input
             type="text"
@@ -135,9 +135,14 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
             <button
               key={item.label}
               onClick={() => toggleFilter('subjects', item.label, !(isChecked('subjects', item.label)))}
-              className={clsx('px-2 py-1 rounded text-sm border', isChecked('subjects', item.label) ? 'bg-primary-600 text-white' : 'bg-white dark:bg-gray-900')}
+              className={clsx(
+                'chip-base text-sm transition-colors',
+                isChecked('subjects', item.label)
+                  ? 'bg-[color:var(--primary)] text-white'
+                  : 'chip-filter'
+              )}
             >
-              {item.label} <span className="text-xs ml-1 text-gray-500">{item.count}</span>
+              {item.label} <span className="text-[11px] ml-1 opacity-75">{item.count}</span>
             </button>
           ))}
         </div>
@@ -146,9 +151,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
   };
 
   return (
-    <div className="card h-full flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-        <h2 className="font-bold text-lg text-gray-900 dark:text-gray-50">Filter by</h2>
+    <div className="card h-full flex flex-col overflow-hidden bg-[color:var(--surface-container-low)]">
+      <div className="flex items-center justify-between p-4">
+        <h2 className="font-bold text-lg tracking-tight text-[color:var(--on-surface)]">Filter by</h2>
         {onClose && (
           <button onClick={onClose} className="btn-ghost p-2 -m-2">
             <X className="w-5 h-5" />
@@ -156,7 +161,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
         <FilterSection title="Publisher" sectionKey="organizations" filterKey="organizations" items={facets.organizations} />
         <FilterSection title="Jurisdiction" sectionKey="jurisdictions" filterKey="jurisdictions" items={facets.jurisdictions} />
         <SubjectSection items={facets.subjects} />
@@ -169,8 +174,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
         <FilterSection title="Keywords" sectionKey="keywords" filterKey="keywords" items={facets.keywords} />
       </div>
 
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-2">
-        <button className="btn-primary w-full" onClick={onApply}>Apply Filters</button>
+      <div className="p-4 space-y-2">
+        <button className="btn-discovery w-full" onClick={onApply}>Apply Filters</button>
         <button
           onClick={handleClearAll}
           className="btn-secondary w-full"

@@ -10,7 +10,7 @@ import { Dataset, FilterState, SearchResponse } from '@/lib/types';
 import { SearchInput } from './components/SearchInput';
 import { DatasetCard } from './components/DatasetCard';
 import { FilterPanel } from './components/FilterPanel';
-import { AlertTriangle, Settings, SlidersHorizontal, X } from 'lucide-react';
+import { AlertTriangle, SlidersHorizontal, X } from 'lucide-react';
 import clsx from 'clsx';
 
 const EMPTY_FACETS: SearchResponse['facets'] = {
@@ -243,14 +243,6 @@ export const App: React.FC = () => {
   const [resolvedQuery, setResolvedQuery] = useState<FilterState | null>(null);
   const hasHydratedFiltersFromUrl = useRef(false);
   const hasCompletedInitialLoad = useRef(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Check system preference or localStorage
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('theme');
-      if (saved) return saved === 'dark';
-    }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
 
   const {
     datasets,
@@ -331,18 +323,6 @@ export const App: React.FC = () => {
 
     removeFilter(key);
   };
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (isDarkMode) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-    }
-  }, [isDarkMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -483,34 +463,30 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className={clsx('min-h-screen bg-white dark:bg-gray-950 transition-colors')}>
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-gray-950/95 backdrop-blur border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between mb-4">
+    <div className={clsx('min-h-screen text-[color:var(--on-surface)]')}>
+      <header className="sticky top-0 z-40 glass-nav">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-10 lg:px-16 py-4">
+          <div className="flex items-center justify-between gap-4 mb-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">
-                🍁 Canadian Data Discovery
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Explore open government data playfully
-              </p>
+              <p className="label-md">The Digital Curator</p>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Canadian Data Discovery</h1>
             </div>
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="btn-ghost p-2"
-              aria-label="Toggle dark mode"
+            <a
+              href="https://open.canada.ca"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-tertiary text-sm"
             >
-              <Settings className="w-5 h-5" />
-            </button>
+              Source Registry
+            </a>
           </div>
 
           <SearchInput onSearch={handleSearch} isLoading={loading} />
 
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-4 flex items-center gap-2">
             <button
               onClick={() => toggleFilters()}
-              className="btn-secondary text-sm inline-flex items-center gap-2"
+              className="btn-secondary text-sm"
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filters {activeFilterChips.length > 0 ? `(${activeFilterChips.length})` : ''}
@@ -527,17 +503,35 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left: Filters (desktop always visible) */}
-          <aside className="hidden lg:block lg:col-span-1 h-fit sticky top-24">
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-10 lg:px-16 py-10">
+        <section className="hero-gradient hero-asymmetry rounded-[2rem] px-6 sm:px-10 lg:px-14 py-10 mb-9 shadow-[0_22px_44px_-22px_rgba(0,60,107,0.7)]">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-end">
+            <div className="lg:col-span-3">
+              <p className="label-md !text-[#d4e7fa]">Accessible Transparency</p>
+              <h2 className="text-[clamp(2.1rem,5.2vw,3.5rem)] font-extrabold tracking-[-0.04em] leading-[0.94] mt-2">
+                Curated intelligence for Canada&apos;s public datasets.
+              </h2>
+              <p className="mt-4 text-sm sm:text-base text-[#d6e7f8] max-w-2xl">
+                Discover high-signal records first, then dive deeper only where the evidence is strongest.
+              </p>
+            </div>
+            <div className="lg:col-span-2 lg:justify-self-end">
+              <div className="rounded-3xl bg-white/15 p-5 backdrop-blur-md">
+                <p className="label-md !text-[#e4f0fc]">New Discovery</p>
+                <p className="text-4xl font-extrabold tracking-tight mt-1">{total.toLocaleString()}</p>
+                <p className="text-sm text-[#dfecfb] mt-2">datasets indexed across federal and provincial publishers</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+          <aside className="hidden lg:block lg:col-span-1 h-fit sticky top-28 shell-panel p-3">
             <FilterPanel facets={displayFacets} onApply={handleApplyFilters} />
           </aside>
 
-          {/* Mobile filter drawer */}
           {showFilters && (
-            <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => toggleFilters()}>
+            <div className="fixed inset-0 z-50 bg-[rgba(12,28,49,0.32)] lg:hidden" onClick={() => toggleFilters()}>
               <div className="absolute right-0 top-0 h-full w-full max-w-sm p-3" onClick={(e) => e.stopPropagation()}>
                 <FilterPanel
                   facets={displayFacets}
@@ -551,15 +545,17 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* Right: Results */}
           <div className={clsx('lg:col-span-3')}>
             {activeFilterChips.length > 0 && (
-              <div className="mb-4 flex flex-wrap gap-2">
+              <div className="mb-6 flex flex-wrap gap-2">
                 {activeFilterChips.map((chip) => (
                   <button
                     key={`${chip.key}:${chip.value || chip.label}`}
                     onClick={() => handleRemoveFilterChip(chip.key, chip.value)}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                    className={clsx(
+                      'chip-base',
+                      chip.key === 'recency_days' ? 'chip-discovery' : 'chip-filter'
+                    )}
                   >
                     <span>{chip.label}</span>
                     <X className="w-3 h-3" />
@@ -569,17 +565,17 @@ export const App: React.FC = () => {
             )}
 
             {error && (
-              <div className="card bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 p-4 mb-4">
+              <div className="error-surface p-4 mb-5">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-danger-600 dark:text-danger-300 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-[color:var(--tertiary)] mt-0.5" />
                   <div className="min-w-0">
-                    <p className="text-danger-900 dark:text-danger-100 text-sm font-medium">
+                    <p className="text-[color:var(--tertiary)] text-sm font-semibold">
                       Search could not complete
                     </p>
-                    <p className="text-danger-800 dark:text-danger-300 text-sm mt-1 break-words">
+                    <p className="text-[color:var(--on-surface)] text-sm mt-1 break-words">
                       {error}
                     </p>
-                    <p className="text-danger-700 dark:text-danger-400 text-xs mt-2">
+                    <p className="text-[color:var(--on-surface-variant)] text-xs mt-2">
                       Check Vercel function logs if this is production, or run `vercel dev` locally.
                     </p>
                   </div>
@@ -588,9 +584,9 @@ export const App: React.FC = () => {
             )}
 
             {loading && (
-              <div className="space-y-4">
+              <div className="space-y-8">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="card p-4 space-y-3">
+                  <div key={i} className="card p-5 space-y-3">
                     <div className="skeleton h-6 w-3/4 rounded" />
                     <div className="skeleton h-4 w-full rounded" />
                     <div className="skeleton h-4 w-2/3 rounded" />
@@ -601,10 +597,10 @@ export const App: React.FC = () => {
 
             {!loading && datasets.length === 0 && !error && (
               <div className="text-center py-16">
-                <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">
+                <p className="text-[color:var(--on-surface-variant)] text-lg mb-2">
                   Start exploring by typing what data interests you
                 </p>
-                <p className="text-gray-400 dark:text-gray-600 text-sm">
+                <p className="text-[color:var(--secondary)] text-sm">
                   E.g., "agricultural statistics", "climate data by province"
                 </p>
               </div>
@@ -613,7 +609,7 @@ export const App: React.FC = () => {
             {!loading && datasets.length > 0 && (
               <>
                 <div className="mb-6 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+                  <h2 className="text-xl font-semibold tracking-tight">
                     Showing {datasets.length} of {total} result{total !== 1 ? 's' : ''}
                   </h2>
                   <button
@@ -623,14 +619,14 @@ export const App: React.FC = () => {
                     {showFilters ? 'Hide Filters' : `Show Filters${activeFilterChips.length ? ` (${activeFilterChips.length})` : ''}`}
                   </button>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-8">
                   {datasets.map((dataset) => (
                     <DatasetCard key={dataset.id} dataset={dataset} />
                   ))}
                 </div>
                 {hasMore && (
                   <div className="mt-6">
-                    <button onClick={handleLoadMore} className="btn-secondary w-full" disabled={loading}>
+                    <button onClick={handleLoadMore} className="btn-discovery w-full" disabled={loading}>
                       {loading ? 'Loading...' : 'Load More'}
                     </button>
                   </div>
@@ -641,16 +637,15 @@ export const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-800 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+      <footer className="mt-14">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-10 lg:px-16 py-9 text-center">
+          <p className="text-sm text-[color:var(--on-surface-variant)]">
             Data sourced from{' '}
             <a
               href="https://open.canada.ca"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+              className="text-[color:var(--primary)] hover:text-[color:var(--primary-container)]"
             >
               open.canada.ca
             </a>
