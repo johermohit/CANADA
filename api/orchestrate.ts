@@ -5,7 +5,7 @@
  */
 
 import { OrchestrateRequest, OrchestrateResponse, FilterState } from '../src/lib/types';
-import { searchDatasets } from './supabase.js';
+import { searchDatasets, getOrganizations, getAvailableFormats, getJurisdictions, getSubjects, getFrequencies, getCollectionTypes, getResourceTypes, getLanguages, getKeywordsChips } from './supabase.js';
 import {
   createErrorResponse,
   getErrorMessage,
@@ -127,13 +127,37 @@ export default async function handler(req: any, res: any) {
     const { total, visible, has_more, datasets } = await searchDatasets({
       keywords: filters.keywords,
       organizations: filters.organizations,
+      jurisdictions: filters.jurisdictions,
+      subjects: filters.subjects,
       formats: filters.formats,
+      frequencies: filters.frequencies,
+      collection_types: filters.collection_types,
+      resource_types: filters.resource_types,
+      languages: filters.languages,
       recency_days: filters.recency_days,
       limit,
       offset,
     });
 
     const executionTime = Date.now() - startTime;
+
+    // gather facets in parallel (global counts)
+    const [orgs, formats, jurisdictions, subjects, frequencies, collectionTypes, resourceTypes, languages, keywords, recency] = await Promise.all([
+      getOrganizations(),
+      getAvailableFormats(),
+      getJurisdictions(),
+      getSubjects(),
+      getFrequencies(),
+      getCollectionTypes(),
+      getResourceTypes(),
+      getLanguages(),
+      getKeywordsChips(),
+      Promise.resolve([
+        { label: 'Last 7 days', count: 0 },
+        { label: 'Last 30 days', count: 0 },
+        { label: 'Last 90 days', count: 0 },
+      ]),
+    ]);
 
     const response: OrchestrateResponse = {
       query: filters,
@@ -145,13 +169,16 @@ export default async function handler(req: any, res: any) {
         has_more,
         datasets,
         facets: {
-          organizations: [],
-          formats: [],
-          recency: [
-            { label: 'Last 7 days', count: 0 },
-            { label: 'Last 30 days', count: 0 },
-            { label: 'Last 90 days', count: 0 },
-          ],
+          organizations: orgs,
+          jurisdictions: jurisdictions,
+          subjects: subjects,
+          formats: formats,
+          frequencies: frequencies,
+          collection_types: collectionTypes,
+          resource_types: resourceTypes,
+          languages: languages,
+          keywords: keywords,
+          recency,
         },
       },
       execution_time_ms: executionTime,

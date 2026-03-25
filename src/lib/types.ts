@@ -5,6 +5,15 @@ export interface Dataset {
   title: string;
   description: string;
   organization: string;
+  // Stable organization key (used for filtering)
+  organization_key?: string;
+  jurisdiction?: string | null;
+  subject?: string | null;
+  update_frequency?: string | null;
+  collection_type?: string | null;
+  language?: string | null;
+  // keywords extracted from datasets.keywords_en (comma-separated)
+  keywords?: string[];
   metadata_modified: string | null;
   resource_count: number;
   formats: string[];
@@ -17,6 +26,8 @@ export interface DatasetResource {
   _link_main: string;
   name: string;
   format: string;
+  resource_type?: string;
+  language?: string;
   url: string;
   size: string;
   ckan_resource_id?: string;
@@ -44,7 +55,18 @@ export interface ResourcePreview {
 }
 
 export interface SearchQuery {
-  intent: string;
+  intent?: string;
+  keywords?: string[];
+  organizations?: string[];
+  jurisdictions?: string[];
+  subjects?: string[];
+  subject_query?: string;
+  formats?: string[];
+  frequencies?: string[];
+  collection_types?: string[];
+  resource_types?: string[];
+  languages?: string[];
+  recency_days?: number;
   limit?: number;
   offset?: number;
 }
@@ -57,8 +79,15 @@ export interface SearchResponse {
   has_more: boolean;
   datasets: Dataset[];
   facets: {
-    organizations: Array<{ label: string; count: number }>;
+    organizations: Array<{ label: string; value: string; count: number }>;
+    jurisdictions: Array<{ label: string; count: number }>;
+    subjects: Array<{ label: string; count: number }>;
     formats: Array<{ label: string; count: number }>;
+    frequencies: Array<{ label: string; count: number }>;
+    collection_types: Array<{ label: string; count: number }>;
+    resource_types: Array<{ label: string; count: number }>;
+    languages: Array<{ label: string; count: number }>;
+    keywords: Array<{ label: string; count: number }>;
     recency: Array<{ label: string; count: number }>;
   };
 }
@@ -79,7 +108,15 @@ export interface OrchestrateResponse {
 export interface FilterState {
   keywords?: string[];
   organizations?: string[];
+  jurisdictions?: string[];
+  subjects?: string[];
+  // free-text subject query for ILIKE
+  subject_query?: string;
   formats?: string[];
+  frequencies?: string[];
+  collection_types?: string[];
+  resource_types?: string[];
+  languages?: string[];
   recency_days?: number;
 }
 

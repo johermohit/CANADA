@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { FilterState, Dataset } from './types';
+import { FilterState, Dataset, SearchResponse } from './types';
 
 export interface DiscoveryState {
   // Search results
@@ -8,6 +8,7 @@ export interface DiscoveryState {
   total: number;
   hasMore: boolean;
   error: string | null;
+  facets: SearchResponse['facets'];
 
   // UI state
   filters: FilterState;
@@ -21,6 +22,7 @@ export interface DiscoveryState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setHasMore: (hasMore: boolean) => void;
+  setFacets: (facets: SearchResponse['facets']) => void;
   setFilters: (filters: FilterState) => void;
   addFilter: (key: keyof FilterState, value: any) => void;
   removeFilter: (key: keyof FilterState, value?: any) => void;
@@ -36,6 +38,18 @@ const initialState = {
   total: 0,
   hasMore: false,
   error: null,
+  facets: {
+    organizations: [],
+    jurisdictions: [],
+    subjects: [],
+    formats: [],
+    frequencies: [],
+    collection_types: [],
+    resource_types: [],
+    languages: [],
+    keywords: [],
+    recency: [],
+  } as SearchResponse['facets'],
   filters: {} as FilterState,
   selectedDatasetId: null,
   expandedResourceId: null,
@@ -50,6 +64,7 @@ export const useDiscoveryStore = create<DiscoveryState>((set) => ({
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setHasMore: (hasMore) => set({ hasMore }),
+  setFacets: (facets) => set({ facets }),
 
   setFilters: (filters) => set({ filters }),
   addFilter: (key, value) =>

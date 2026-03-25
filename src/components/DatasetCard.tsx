@@ -18,6 +18,12 @@ interface DatasetCardProps {
 export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected }) => {
   const selectDataset = useDiscoveryStore((state) => state.selectDataset);
   const selectedDatasetId = useDiscoveryStore((state) => state.selectedDatasetId);
+  const setDatasets = useDiscoveryStore((s) => s.setDatasets);
+  const setTotal = useDiscoveryStore((s) => s.setTotal);
+  const setHasMore = useDiscoveryStore((s) => s.setHasMore);
+  const setFacets = useDiscoveryStore((s) => s.setFacets);
+  const setLoading = useDiscoveryStore((s) => s.setLoading);
+  const setError = useDiscoveryStore((s) => s.setError);
   const [previewByResource, setPreviewByResource] = React.useState<Record<string, PreviewResponse>>({});
   const [loadingResourceId, setLoadingResourceId] = React.useState<string | null>(null);
   const [previewErrorsByResource, setPreviewErrorsByResource] = React.useState<Record<string, string>>({});
@@ -48,6 +54,22 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
       }));
     } finally {
       setLoadingResourceId(null);
+    }
+  };
+
+  const handleMoreLike = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const resp = await apiClient.moreLike(dataset.id, 12, 0);
+      setDatasets(resp.datasets);
+      setTotal(resp.total);
+      setHasMore(resp.has_more);
+      if (resp.facets) setFacets(resp.facets as any);
+    } catch (err: any) {
+      setError(err?.message || 'More like this failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,6 +139,9 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset, isSelected })
       {/* Expanded state */}
       {isActive && (
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 animate-fade-in space-y-3">
+          <div className="flex justify-end">
+            <button onClick={handleMoreLike} className="btn-ghost text-sm">More Like This</button>
+          </div>
           {resources.length === 0 && (
             <p className="text-sm text-gray-500 dark:text-gray-400">No linked resources available for this dataset.</p>
           )}

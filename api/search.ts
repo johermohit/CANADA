@@ -4,7 +4,7 @@
  */
 
 import { SearchQuery, SearchResponse } from '../src/lib/types';
-import { searchDatasets } from './supabase.js';
+import { searchDatasets, getOrganizations, getAvailableFormats, getJurisdictions, getSubjects, getFrequencies, getCollectionTypes, getResourceTypes, getLanguages, getKeywordsChips } from './supabase.js';
 import {
   createErrorResponse,
   getErrorMessage,
@@ -36,17 +36,31 @@ export default async function handler(req: any, res: any) {
     logApiInfo({ requestId, route, method: req.method, message: 'search request received' });
     const body: SearchQuery = parseRequestBody<SearchQuery>(req.body);
 
-    if (!body.intent || typeof body.intent !== 'string') {
-      const { error, status } = createErrorResponse('INVALID_REQUEST', 'Missing or invalid intent field', 400, requestId);
+    const hasResolvedFilters =
+      (Array.isArray(body.keywords) && body.keywords.length > 0) ||
+      (Array.isArray(body.organizations) && body.organizations.length > 0) ||
+      (Array.isArray(body.formats) && body.formats.length > 0) ||
+      typeof body.recency_days === 'number';
+
+    const hasIntent = typeof body.intent === 'string' && body.intent.trim().length > 0;
+
+    if (!hasResolvedFilters && !hasIntent) {
+      const { error, status } = createErrorResponse(
+        'INVALID_REQUEST',
+        'Provide resolved filters or a non-empty intent field',
+        400,
+        requestId
+      );
       sendJson(res, status, error, origin);
       return;
     }
 
-    // Simple keyword extraction from intent
-    const keywords = body.intent
-      .toLowerCase()
-      .split(/\s+/)
-      .filter((w: string) => w.length > 2);
+    const keywords = hasResolvedFilters
+      ? body.keywords
+      : body.intent
+          ?.toLowerCase()
+          .split(/\s+/)
+          .filter((w: string) => w.length > 2);
 
     const startTime = Date.now();
 
@@ -55,9 +69,37 @@ export default async function handler(req: any, res: any) {
 
     const { total, visible, has_more, datasets } = await searchDatasets({
       keywords,
+      organizations: body.organizations,
+      jurisdictions: body.jurisdictions,
+      subjects: body.subjects,
+      subject_query: body.subject_query,
+      formats: body.formats,
+      frequencies: body.frequencies,
+      collection_types: body.collection_types,
+      resource_types: body.resource_types,
+      languages: body.languages,
+      recency_days: body.recency_days,
       limit,
       offset,
     });
+
+    // gather facets for the UI
+    const [orgs, formats, jurisdictions, subjects, frequencies, collectionTypes, resourceTypes, languages, keywordsFacet, recency] = await Promise.all([
+      getOrganizations(),
+      getAvailableFormats(),
+      getJurisdictions(),
+      getSubjects(),
+      getFrequencies(),
+      getCollectionTypes(),
+      getResourceTypes(),
+      getLanguages(),
+      getKeywordsChips(),
+      Promise.resolve([
+        { label: 'Last 7 days', count: 0 },
+        { label: 'Last 30 days', count: 0 },
+        { label: 'Last 90 days', count: 0 },
+      ]),
+    ]);
 
     const response: SearchResponse = {
       total,
@@ -67,13 +109,16 @@ export default async function handler(req: any, res: any) {
       has_more,
       datasets,
       facets: {
-        organizations: [],
-        formats: [],
-        recency: [
-          { label: 'Last 7 days', count: 0 },
-          { label: 'Last 30 days', count: 0 },
-          { label: 'Last 90 days', count: 0 },
-        ],
+        organizations: orgs,
+        jurisdictions: jurisdictions,
+        subjects: subjects,
+        formats: formats,
+        frequencies: frequencies,
+        collection_types: collectionTypes,
+        resource_types: resourceTypes,
+        languages: languages,
+        keywords: keywordsFacet,
+        recency,
       },
     };
 

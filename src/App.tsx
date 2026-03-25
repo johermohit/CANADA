@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDiscoveryStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
-import { SearchResponse } from '@/lib/types';
+import { FilterState, SearchResponse } from '@/lib/types';
 import { SearchInput } from './components/SearchInput';
 import { DatasetCard } from './components/DatasetCard';
 import { FilterPanel } from './components/FilterPanel';
@@ -15,13 +15,20 @@ import clsx from 'clsx';
 
 const EMPTY_FACETS: SearchResponse['facets'] = {
   organizations: [],
+  jurisdictions: [],
+  subjects: [],
   formats: [],
+  frequencies: [],
+  collection_types: [],
+  resource_types: [],
+  languages: [],
+  keywords: [],
   recency: [],
 };
 
 export const App: React.FC = () => {
   const [currentPrompt, setCurrentPrompt] = useState('');
-  const [facets, setFacets] = useState<SearchResponse['facets']>(EMPTY_FACETS);
+  const [resolvedQuery, setResolvedQuery] = useState<FilterState | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check system preference or localStorage
     if (typeof localStorage !== 'undefined') {
@@ -45,6 +52,8 @@ export const App: React.FC = () => {
     setTotal,
     setHasMore,
     setError,
+    facets,
+    setFacets,
   } = useDiscoveryStore();
 
   useEffect(() => {
@@ -64,24 +73,39 @@ export const App: React.FC = () => {
     setError(null);
     try {
       const offset = append ? datasets.length : 0;
-      const response = await apiClient.orchestrate({
-        prompt: intent,
-        filters,
-        limit: 12,
-        offset,
-      });
+      const response = append && resolvedQuery
+        ? await apiClient.search({
+            keywords: resolvedQuery.keywords,
+            organizations: resolvedQuery.organizations,
+            formats: resolvedQuery.formats,
+            recency_days: resolvedQuery.recency_days,
+            limit: 12,
+            offset,
+          })
+        : await apiClient.orchestrate({
+            prompt: intent,
+            filters,
+            limit: 12,
+            offset,
+          });
 
       if (append) {
+        const nextDatasets = 'results' in response ? response.results.datasets : response.datasets;
         const existingIds = new Set(datasets.map((dataset) => dataset.id));
-        const nextBatch = response.results.datasets.filter((dataset) => !existingIds.has(dataset.id));
+        const nextBatch = nextDatasets.filter((dataset) => !existingIds.has(dataset.id));
         setDatasets([...datasets, ...nextBatch]);
       } else {
-        setDatasets(response.results.datasets);
+        const nextDatasets = 'results' in response ? response.results.datasets : response.datasets;
+        setDatasets(nextDatasets);
       }
 
-      setTotal(response.results.total);
-      setHasMore(response.results.has_more);
-      setFacets(response.results.facets || EMPTY_FACETS);
+      const resultPayload = 'results' in response ? response.results : response;
+      setTotal(resultPayload.total);
+      setHasMore(resultPayload.has_more);
+      setFacets(resultPayload.facets || EMPTY_FACETS);
+      if ('query' in response) {
+        setResolvedQuery(response.query || null);
+      }
       setCurrentPrompt(intent);
     } catch (err: any) {
       console.error('Search request failed', err);
@@ -97,7 +121,7 @@ export const App: React.FC = () => {
   };
 
   const handleLoadMore = () => {
-    if (!currentPrompt || loading) return;
+    if (!currentPrompt || loading || !resolvedQuery) return;
     handleSearch(currentPrompt, true);
   };
 

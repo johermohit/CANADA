@@ -111,6 +111,13 @@ class ApiClient {
     });
   }
 
+  async moreLike(datasetId: string, limit = 12, offset = 0): Promise<SearchResponse> {
+    return this.request('/api/more_like', {
+      method: 'POST',
+      body: JSON.stringify({ id: datasetId, limit, offset }),
+    });
+  }
+
   async getDataset(datasetId: string) {
     return this.request(`/api/datasets/${datasetId}`);
   }
