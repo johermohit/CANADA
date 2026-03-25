@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDiscoveryStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
-import { FilterState, SearchResponse } from '@/lib/types';
+import { Dataset, FilterState, SearchResponse } from '@/lib/types';
 import { SearchInput } from './components/SearchInput';
 import { DatasetCard } from './components/DatasetCard';
 import { FilterPanel } from './components/FilterPanel';
@@ -121,10 +121,128 @@ function writeFiltersToUrl(filters: FilterState) {
   }
 }
 
+function toSortedFacetEntries(map: Map<string, number>, limit = 40) {
+  return Array.from(map.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+function deriveFacetsFromDatasets(datasets: Dataset[]): SearchResponse['facets'] {
+  const organizations = new Map<string, { label: string; value: string; count: number }>();
+  const jurisdictions = new Map<string, number>();
+  const subjects = new Map<string, number>();
+  const formats = new Map<string, number>();
+  const frequencies = new Map<string, number>();
+  const collectionTypes = new Map<string, number>();
+  const resourceTypes = new Map<string, number>();
+  const languages = new Map<string, number>();
+  const keywords = new Map<string, number>();
+
+  let recency7 = 0;
+  let recency30 = 0;
+  let recency90 = 0;
+
+  datasets.forEach((dataset) => {
+    const organizationValue = (dataset.organization_key || dataset.organization || '').trim();
+    const organizationLabel = (dataset.organization || dataset.organization_key || '').trim();
+    if (organizationValue) {
+      const current = organizations.get(organizationValue);
+      organizations.set(organizationValue, {
+        label: organizationLabel || organizationValue,
+        value: organizationValue,
+        count: (current?.count || 0) + 1,
+      });
+    }
+
+    const jurisdiction = (dataset.jurisdiction || '').trim();
+    if (jurisdiction) {
+      jurisdictions.set(jurisdiction, (jurisdictions.get(jurisdiction) || 0) + 1);
+    }
+
+    const subjectRaw = (dataset.subject || '').trim();
+    if (subjectRaw) {
+      subjectRaw.split(/[,;]+/).forEach((part) => {
+        const value = part.trim();
+        if (!value) return;
+        subjects.set(value, (subjects.get(value) || 0) + 1);
+      });
+    }
+
+    (dataset.formats || []).forEach((format) => {
+      const value = format.trim();
+      if (!value) return;
+      formats.set(value, (formats.get(value) || 0) + 1);
+    });
+
+    const frequency = (dataset.update_frequency || '').trim();
+    if (frequency) {
+      frequencies.set(frequency, (frequencies.get(frequency) || 0) + 1);
+    }
+
+    const collectionType = (dataset.collection_type || '').trim();
+    if (collectionType) {
+      collectionTypes.set(collectionType, (collectionTypes.get(collectionType) || 0) + 1);
+    }
+
+    const datasetLanguage = (dataset.language || '').trim();
+    if (datasetLanguage) {
+      languages.set(datasetLanguage, (languages.get(datasetLanguage) || 0) + 1);
+    }
+
+    (dataset.resources || []).forEach((resource) => {
+      const resourceType = (resource.resource_type || '').trim();
+      if (resourceType) {
+        resourceTypes.set(resourceType, (resourceTypes.get(resourceType) || 0) + 1);
+      }
+
+      const resourceLanguage = (resource.language || '').trim();
+      if (resourceLanguage) {
+        languages.set(resourceLanguage, (languages.get(resourceLanguage) || 0) + 1);
+      }
+    });
+
+    (dataset.keywords || []).forEach((keyword) => {
+      const value = keyword.trim();
+      if (!value) return;
+      keywords.set(value, (keywords.get(value) || 0) + 1);
+    });
+
+    if (dataset.metadata_modified) {
+      const modifiedAt = new Date(dataset.metadata_modified).getTime();
+      if (Number.isFinite(modifiedAt)) {
+        const ageMs = Date.now() - modifiedAt;
+        const ageDays = ageMs / (1000 * 60 * 60 * 24);
+        if (ageDays <= 7) recency7 += 1;
+        if (ageDays <= 30) recency30 += 1;
+        if (ageDays <= 90) recency90 += 1;
+      }
+    }
+  });
+
+  return {
+    organizations: Array.from(organizations.values()).sort((a, b) => b.count - a.count).slice(0, 40),
+    jurisdictions: toSortedFacetEntries(jurisdictions),
+    subjects: toSortedFacetEntries(subjects),
+    formats: toSortedFacetEntries(formats),
+    frequencies: toSortedFacetEntries(frequencies),
+    collection_types: toSortedFacetEntries(collectionTypes),
+    resource_types: toSortedFacetEntries(resourceTypes),
+    languages: toSortedFacetEntries(languages),
+    keywords: toSortedFacetEntries(keywords),
+    recency: [
+      { label: 'Last 7 days', count: recency7 },
+      { label: 'Last 30 days', count: recency30 },
+      { label: 'Last 90 days', count: recency90 },
+    ],
+  };
+}
+
 export const App: React.FC = () => {
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [resolvedQuery, setResolvedQuery] = useState<FilterState | null>(null);
   const hasHydratedFiltersFromUrl = useRef(false);
+  const hasCompletedInitialLoad = useRef(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check system preference or localStorage
     if (typeof localStorage !== 'undefined') {
@@ -193,6 +311,11 @@ export const App: React.FC = () => {
     return chips;
   }, [filters]);
 
+  const displayFacets = React.useMemo(
+    () => (datasets.length > 0 ? deriveFacetsFromDatasets(datasets) : facets),
+    [datasets, facets]
+  );
+
   const handleRemoveFilterChip = (key: keyof FilterState, value?: string) => {
     if (key === 'recency_days' || key === 'subject_query') {
       const nextFilters = { ...filters };
@@ -222,17 +345,64 @@ export const App: React.FC = () => {
   }, [isDarkMode]);
 
   useEffect(() => {
-    const parsed = parseFiltersFromUrl(window.location.search);
-    if (Object.keys(parsed).length > 0) {
-      setFilters(parsed);
-      setResolvedQuery(parsed);
-    }
-    hasHydratedFiltersFromUrl.current = true;
-  }, [setFilters]);
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      const parsed = parseFiltersFromUrl(window.location.search);
+      if (Object.keys(parsed).length > 0) {
+        setFilters(parsed);
+        setResolvedQuery(parsed);
+      }
+
+      hasHydratedFiltersFromUrl.current = true;
+
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await apiClient.search({
+          ...parsed,
+          limit: 12,
+          offset: 0,
+        });
+
+        if (cancelled) return;
+
+        setDatasets(response.datasets);
+        setTotal(response.total);
+        setHasMore(response.has_more);
+        setFacets(response.facets || EMPTY_FACETS);
+        setResolvedQuery(Object.keys(parsed).length > 0 ? parsed : {});
+      } catch (err: any) {
+        if (cancelled) return;
+        console.error('Initial browse request failed', err);
+        setError(err.message || 'Search failed');
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          hasCompletedInitialLoad.current = true;
+        }
+      }
+    };
+
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [setDatasets, setError, setFacets, setFilters, setHasMore, setLoading, setTotal]);
 
   useEffect(() => {
     if (!hasHydratedFiltersFromUrl.current) return;
     writeFiltersToUrl(filters);
+  }, [filters]);
+
+  useEffect(() => {
+    if (!hasCompletedInitialLoad.current) return;
+
+    const timer = window.setTimeout(() => {
+      void handleApplyFilters();
+    }, 250);
+
+    return () => window.clearTimeout(timer);
   }, [filters]);
 
   const handleSearch = async (intent: string, append = false) => {
@@ -283,7 +453,7 @@ export const App: React.FC = () => {
     setResolvedQuery(filters);
 
     if (currentPrompt) {
-      handleSearch(currentPrompt, false);
+      await handleSearch(currentPrompt, false);
       return;
     }
 
@@ -362,7 +532,7 @@ export const App: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left: Filters (desktop always visible) */}
           <aside className="hidden lg:block lg:col-span-1 h-fit sticky top-24">
-            <FilterPanel facets={facets} onApply={handleApplyFilters} />
+            <FilterPanel facets={displayFacets} onApply={handleApplyFilters} />
           </aside>
 
           {/* Mobile filter drawer */}
@@ -370,7 +540,7 @@ export const App: React.FC = () => {
             <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => toggleFilters()}>
               <div className="absolute right-0 top-0 h-full w-full max-w-sm p-3" onClick={(e) => e.stopPropagation()}>
                 <FilterPanel
-                  facets={facets}
+                  facets={displayFacets}
                   onApply={() => {
                     handleApplyFilters();
                     toggleFilters();

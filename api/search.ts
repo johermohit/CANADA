@@ -39,28 +39,26 @@ export default async function handler(req: any, res: any) {
     const hasResolvedFilters =
       (Array.isArray(body.keywords) && body.keywords.length > 0) ||
       (Array.isArray(body.organizations) && body.organizations.length > 0) ||
+      (Array.isArray(body.jurisdictions) && body.jurisdictions.length > 0) ||
+      (Array.isArray(body.subjects) && body.subjects.length > 0) ||
+      (typeof body.subject_query === 'string' && body.subject_query.trim().length > 0) ||
       (Array.isArray(body.formats) && body.formats.length > 0) ||
+      (Array.isArray(body.frequencies) && body.frequencies.length > 0) ||
+      (Array.isArray(body.collection_types) && body.collection_types.length > 0) ||
+      (Array.isArray(body.resource_types) && body.resource_types.length > 0) ||
+      (Array.isArray(body.languages) && body.languages.length > 0) ||
       typeof body.recency_days === 'number';
 
     const hasIntent = typeof body.intent === 'string' && body.intent.trim().length > 0;
 
-    if (!hasResolvedFilters && !hasIntent) {
-      const { error, status } = createErrorResponse(
-        'INVALID_REQUEST',
-        'Provide resolved filters or a non-empty intent field',
-        400,
-        requestId
-      );
-      sendJson(res, status, error, origin);
-      return;
-    }
-
-    const keywords = hasResolvedFilters
+    const keywords = Array.isArray(body.keywords) && body.keywords.length > 0
       ? body.keywords
-      : body.intent
-          ?.toLowerCase()
-          .split(/\s+/)
-          .filter((w: string) => w.length > 2);
+      : hasIntent
+          ? body.intent
+              ?.toLowerCase()
+              .split(/\s+/)
+              .filter((w: string) => w.length > 2)
+          : undefined;
 
     const startTime = Date.now();
 

@@ -64,7 +64,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
 
   const handleClearAll = () => {
     setFilters({});
-    onApply?.();
   };
 
   const FilterSection = ({
