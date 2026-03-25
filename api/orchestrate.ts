@@ -78,7 +78,14 @@ function mergeFilters(parsed: FilterState, provided?: FilterState): FilterState 
   return {
     keywords: provided.keywords?.length ? provided.keywords : parsed.keywords,
     organizations: provided.organizations?.length ? provided.organizations : parsed.organizations,
+    jurisdictions: provided.jurisdictions?.length ? provided.jurisdictions : parsed.jurisdictions,
+    subjects: provided.subjects?.length ? provided.subjects : parsed.subjects,
+    subject_query: provided.subject_query?.trim() ? provided.subject_query : parsed.subject_query,
     formats: provided.formats?.length ? provided.formats : parsed.formats,
+    frequencies: provided.frequencies?.length ? provided.frequencies : parsed.frequencies,
+    collection_types: provided.collection_types?.length ? provided.collection_types : parsed.collection_types,
+    resource_types: provided.resource_types?.length ? provided.resource_types : parsed.resource_types,
+    languages: provided.languages?.length ? provided.languages : parsed.languages,
     recency_days: provided.recency_days ?? parsed.recency_days,
   };
 }
@@ -129,6 +136,7 @@ export default async function handler(req: any, res: any) {
       organizations: filters.organizations,
       jurisdictions: filters.jurisdictions,
       subjects: filters.subjects,
+      subject_query: filters.subject_query,
       formats: filters.formats,
       frequencies: filters.frequencies,
       collection_types: filters.collection_types,

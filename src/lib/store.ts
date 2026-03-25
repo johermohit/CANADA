@@ -71,7 +71,9 @@ export const useDiscoveryStore = create<DiscoveryState>((set) => ({
     set((state) => {
       const current = state.filters[key] || [];
       const updated = Array.isArray(current)
-        ? [...current, value]
+        ? current.includes(value)
+          ? current
+          : [...current, value]
         : [current, value];
       return {
         filters: { ...state.filters, [key]: updated },
@@ -79,18 +81,24 @@ export const useDiscoveryStore = create<DiscoveryState>((set) => ({
     }),
   removeFilter: (key, value) =>
     set((state) => {
-      if (!value) {
+      if (typeof value === 'undefined') {
         const { [key]: _, ...rest } = state.filters;
         return { filters: rest };
       }
       const current = state.filters[key];
-      const updated = Array.isArray(current)
-        ? current.filter((v) => v !== value)
-        : null;
+      if (!Array.isArray(current)) {
+        const { [key]: _, ...rest } = state.filters;
+        return { filters: rest };
+      }
+
+      const updated = current.filter((v) => v !== value);
+      if (updated.length === 0) {
+        const { [key]: _, ...rest } = state.filters;
+        return { filters: rest };
+      }
+
       return {
-        filters: updated
-          ? { ...state.filters, [key]: updated }
-          : { ...state.filters },
+        filters: { ...state.filters, [key]: updated },
       };
     }),
 

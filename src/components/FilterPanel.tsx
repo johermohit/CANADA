@@ -62,6 +62,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
     setExpandedSections(next);
   };
 
+  const handleClearAll = () => {
+    setFilters({});
+    onApply?.();
+  };
+
   const FilterSection = ({
     title,
     sectionKey,
@@ -168,7 +173,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
       <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-2">
         <button className="btn-primary w-full" onClick={onApply}>Apply Filters</button>
         <button
-          onClick={() => setFilters({})}
+          onClick={handleClearAll}
           className="btn-secondary w-full"
         >
           Clear All

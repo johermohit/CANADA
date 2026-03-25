@@ -3,14 +3,14 @@
  * Main application shell
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDiscoveryStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
 import { FilterState, SearchResponse } from '@/lib/types';
 import { SearchInput } from './components/SearchInput';
 import { DatasetCard } from './components/DatasetCard';
 import { FilterPanel } from './components/FilterPanel';
-import { AlertTriangle, Settings } from 'lucide-react';
+import { AlertTriangle, Settings, SlidersHorizontal, X } from 'lucide-react';
 import clsx from 'clsx';
 
 const EMPTY_FACETS: SearchResponse['facets'] = {
@@ -26,9 +26,105 @@ const EMPTY_FACETS: SearchResponse['facets'] = {
   recency: [],
 };
 
+const RECENCY_DAYS_TO_LABEL: Record<number, string> = {
+  7: 'Last 7 days',
+  30: 'Last 30 days',
+  90: 'Last 90 days',
+};
+
+const FILTER_ARRAY_KEYS: Array<
+  'keywords' |
+  'organizations' |
+  'jurisdictions' |
+  'subjects' |
+  'formats' |
+  'frequencies' |
+  'collection_types' |
+  'resource_types' |
+  'languages'
+> = [
+  'keywords',
+  'organizations',
+  'jurisdictions',
+  'subjects',
+  'formats',
+  'frequencies',
+  'collection_types',
+  'resource_types',
+  'languages',
+];
+
+const FILTER_QUERY_KEYS = [...FILTER_ARRAY_KEYS, 'subject_query', 'recency_days'] as const;
+
+function parseFiltersFromUrl(search: string): FilterState {
+  const params = new URLSearchParams(search);
+  const parsed: FilterState = {};
+
+  FILTER_ARRAY_KEYS.forEach((key) => {
+    const values = params
+      .getAll(key)
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+    if (values.length > 0) {
+      parsed[key] = values;
+    }
+  });
+
+  const subjectQuery = params.get('subject_query')?.trim();
+  if (subjectQuery) {
+    parsed.subject_query = subjectQuery;
+  }
+
+  const recencyRaw = params.get('recency_days');
+  if (recencyRaw) {
+    const recency = Number(recencyRaw);
+    if (Number.isFinite(recency) && recency > 0) {
+      parsed.recency_days = Math.round(recency);
+    }
+  }
+
+  return parsed;
+}
+
+function writeFiltersToUrl(filters: FilterState) {
+  const params = new URLSearchParams(window.location.search);
+
+  FILTER_QUERY_KEYS.forEach((key) => {
+    params.delete(key);
+  });
+
+  FILTER_ARRAY_KEYS.forEach((key) => {
+    const values = filters[key];
+    if (Array.isArray(values)) {
+      values
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .forEach((value) => params.append(key, value));
+    }
+  });
+
+  if (filters.subject_query?.trim()) {
+    params.set('subject_query', filters.subject_query.trim());
+  }
+
+  if (typeof filters.recency_days === 'number') {
+    params.set('recency_days', String(filters.recency_days));
+  }
+
+  const nextSearch = params.toString();
+  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+  if (nextUrl !== currentUrl) {
+    window.history.replaceState(null, '', nextUrl);
+  }
+}
+
 export const App: React.FC = () => {
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [resolvedQuery, setResolvedQuery] = useState<FilterState | null>(null);
+  const hasHydratedFiltersFromUrl = useRef(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check system preference or localStorage
     if (typeof localStorage !== 'undefined') {
@@ -47,6 +143,8 @@ export const App: React.FC = () => {
     filters,
     showFilters,
     toggleFilters,
+    removeFilter,
+    setFilters,
     setLoading,
     setDatasets,
     setTotal,
@@ -55,6 +153,61 @@ export const App: React.FC = () => {
     facets,
     setFacets,
   } = useDiscoveryStore();
+
+  const activeFilterChips = React.useMemo(() => {
+    const chips: Array<{ key: keyof FilterState; value?: string; label: string }> = [];
+
+    const addArrayChips = (key: keyof FilterState) => {
+      const values = filters[key];
+      if (Array.isArray(values)) {
+        values.forEach((value) => {
+          chips.push({ key, value, label: value });
+        });
+      }
+    };
+
+    addArrayChips('keywords');
+    addArrayChips('organizations');
+    addArrayChips('jurisdictions');
+    addArrayChips('subjects');
+    addArrayChips('formats');
+    addArrayChips('frequencies');
+    addArrayChips('collection_types');
+    addArrayChips('resource_types');
+    addArrayChips('languages');
+
+    if (filters.subject_query?.trim()) {
+      chips.push({
+        key: 'subject_query',
+        label: `Subject contains: ${filters.subject_query.trim()}`,
+      });
+    }
+
+    if (typeof filters.recency_days === 'number') {
+      chips.push({
+        key: 'recency_days',
+        label: RECENCY_DAYS_TO_LABEL[filters.recency_days] || `Last ${filters.recency_days} days`,
+      });
+    }
+
+    return chips;
+  }, [filters]);
+
+  const handleRemoveFilterChip = (key: keyof FilterState, value?: string) => {
+    if (key === 'recency_days' || key === 'subject_query') {
+      const nextFilters = { ...filters };
+      delete nextFilters[key];
+      setFilters(nextFilters);
+      return;
+    }
+
+    if (value) {
+      removeFilter(key, value);
+      return;
+    }
+
+    removeFilter(key);
+  };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -68,6 +221,20 @@ export const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
+  useEffect(() => {
+    const parsed = parseFiltersFromUrl(window.location.search);
+    if (Object.keys(parsed).length > 0) {
+      setFilters(parsed);
+      setResolvedQuery(parsed);
+    }
+    hasHydratedFiltersFromUrl.current = true;
+  }, [setFilters]);
+
+  useEffect(() => {
+    if (!hasHydratedFiltersFromUrl.current) return;
+    writeFiltersToUrl(filters);
+  }, [filters]);
+
   const handleSearch = async (intent: string, append = false) => {
     setLoading(true);
     setError(null);
@@ -75,10 +242,7 @@ export const App: React.FC = () => {
       const offset = append ? datasets.length : 0;
       const response = append && resolvedQuery
         ? await apiClient.search({
-            keywords: resolvedQuery.keywords,
-            organizations: resolvedQuery.organizations,
-            formats: resolvedQuery.formats,
-            recency_days: resolvedQuery.recency_days,
+            ...resolvedQuery,
             limit: 12,
             offset,
           })
@@ -115,13 +279,36 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleApplyFilters = () => {
-    if (!currentPrompt) return;
-    handleSearch(currentPrompt, false);
+  const handleApplyFilters = async () => {
+    setResolvedQuery(filters);
+
+    if (currentPrompt) {
+      handleSearch(currentPrompt, false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.search({
+        ...filters,
+        limit: 12,
+        offset: 0,
+      });
+      setDatasets(response.datasets);
+      setTotal(response.total);
+      setHasMore(response.has_more);
+      setFacets(response.facets || EMPTY_FACETS);
+    } catch (err: any) {
+      console.error('Filter apply request failed', err);
+      setError(err.message || 'Search failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLoadMore = () => {
-    if (!currentPrompt || loading || !resolvedQuery) return;
+    if (loading || !resolvedQuery) return;
     handleSearch(currentPrompt, true);
   };
 
@@ -149,25 +336,68 @@ export const App: React.FC = () => {
           </div>
 
           <SearchInput onSearch={handleSearch} isLoading={loading} />
+
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={() => toggleFilters()}
+              className="btn-secondary text-sm inline-flex items-center gap-2"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              Filters {activeFilterChips.length > 0 ? `(${activeFilterChips.length})` : ''}
+            </button>
+            {activeFilterChips.length > 0 && (
+              <button
+                onClick={() => setFilters({})}
+                className="btn-ghost text-sm"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left: Filters (mobile: collapsible) */}
+          {/* Left: Filters (desktop always visible) */}
+          <aside className="hidden lg:block lg:col-span-1 h-fit sticky top-24">
+            <FilterPanel facets={facets} onApply={handleApplyFilters} />
+          </aside>
+
+          {/* Mobile filter drawer */}
           {showFilters && (
-            <aside className="lg:col-span-1 h-fit sticky top-24">
-              <FilterPanel
-                facets={facets}
-                onApply={handleApplyFilters}
-                onClose={() => toggleFilters()}
-              />
-            </aside>
+            <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => toggleFilters()}>
+              <div className="absolute right-0 top-0 h-full w-full max-w-sm p-3" onClick={(e) => e.stopPropagation()}>
+                <FilterPanel
+                  facets={facets}
+                  onApply={() => {
+                    handleApplyFilters();
+                    toggleFilters();
+                  }}
+                  onClose={() => toggleFilters()}
+                />
+              </div>
+            </div>
           )}
 
           {/* Right: Results */}
           <div className={clsx('lg:col-span-3')}>
+            {activeFilterChips.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {activeFilterChips.map((chip) => (
+                  <button
+                    key={`${chip.key}:${chip.value || chip.label}`}
+                    onClick={() => handleRemoveFilterChip(chip.key, chip.value)}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                  >
+                    <span>{chip.label}</span>
+                    <X className="w-3 h-3" />
+                  </button>
+                ))}
+              </div>
+            )}
+
             {error && (
               <div className="card bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 p-4 mb-4">
                 <div className="flex items-start gap-3">
@@ -220,7 +450,7 @@ export const App: React.FC = () => {
                     onClick={() => toggleFilters()}
                     className="btn-secondary text-sm lg:hidden"
                   >
-                    {showFilters ? 'Hide Filters' : 'Show Filters'}
+                    {showFilters ? 'Hide Filters' : `Show Filters${activeFilterChips.length ? ` (${activeFilterChips.length})` : ''}`}
                   </button>
                 </div>
                 <div className="space-y-4">
