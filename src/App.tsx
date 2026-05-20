@@ -525,14 +525,14 @@ export const App: React.FC = () => {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
-          <aside className="hidden lg:block lg:col-span-1 h-fit sticky top-28 shell-panel p-3">
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+          <aside className="hidden lg:block sticky top-24 shell-panel p-3 max-h-[calc(100vh-96px)] w-full">
             <FilterPanel facets={displayFacets} onApply={handleApplyFilters} />
           </aside>
 
           {showFilters && (
             <div className="fixed inset-0 z-50 bg-[rgba(12,28,49,0.32)] lg:hidden" onClick={() => toggleFilters()}>
-              <div className="absolute right-0 top-0 h-full w-full max-w-sm p-3" onClick={(e) => e.stopPropagation()}>
+              <div className="absolute right-0 top-0 h-full w-full max-w-sm p-3 max-h-[calc(100vh-6rem)] flex flex-col" onClick={(e) => e.stopPropagation()}>
                 <FilterPanel
                   facets={displayFacets}
                   onApply={() => {

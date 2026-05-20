@@ -80,7 +80,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
     const isExpanded = expandedSections.has(sectionKey);
 
     return (
-      <div className="rounded-2xl bg-[color:var(--surface-container-lowest)] p-4">
+      <div className="rounded-lg bg-[color:var(--surface-container-lowest)] p-3">
         <button
           onClick={() => toggleSection(sectionKey)}
           className="flex items-center justify-between w-full px-2 py-1 rounded-lg transition-colors hover:bg-[color:var(--surface-container-low)]"
@@ -97,17 +97,17 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
               const display = item.label;
               const value = item.value ?? item.label;
               return (
-                <label key={String(value)} className="flex items-center cursor-pointer rounded-xl px-2 py-1.5 transition-colors hover:bg-[color:var(--surface-container-low)]">
+                <label key={String(value)} className="flex items-center cursor-pointer rounded-md px-2 py-1 transition-colors hover:bg-[color:var(--surface-container-low)]">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 rounded focus:ring-2 focus:ring-[color:var(--primary)]"
+                    className="w-4 h-4 rounded accent-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]"
                     checked={isChecked(filterKey, value)}
                     onChange={(e) => {
                       toggleFilter(filterKey, value, e.target.checked);
                     }}
                   />
                   <span className="ml-2 text-sm text-[color:var(--on-surface)] flex-1">{display}</span>
-                  <span className="chip-base chip-filter !px-2.5 !py-1">{item.count}</span>
+                  <span className="chip-base chip-filter !px-2 !py-0.5 text-xs">{item.count}</span>
                 </label>
               );
             })}
@@ -120,7 +120,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
   const SubjectSection = ({ items }: { items: Array<{ label: string; count: number }> }) => {
     const top = items.slice(0, 8);
     return (
-      <div className="rounded-2xl bg-[color:var(--surface-container-lowest)] p-4">
+      <div className="rounded-lg bg-[color:var(--surface-container-lowest)] p-3">
         <div className="mb-2">
           <input
             type="text"
@@ -151,8 +151,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
   };
 
   return (
-    <div className="card h-full flex flex-col overflow-hidden bg-[color:var(--surface-container-low)]">
-      <div className="flex items-center justify-between p-4">
+    <div className="h-full flex flex-col overflow-hidden rounded-lg bg-[color:var(--surface-container-low)] p-3 min-h-0">
+      <div className="flex items-center justify-between pb-3 border-b border-[color:var(--outline-variant)] flex-shrink-0">
         <h2 className="font-bold text-lg tracking-tight text-[color:var(--on-surface)]">Filter by</h2>
         {onClose && (
           <button onClick={onClose} className="btn-ghost p-2 -m-2">
@@ -161,7 +161,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
+      <div className="flex-1 overflow-y-auto mt-3 space-y-3 pr-4 min-h-0 scrollbar-stable">
         <FilterSection title="Publisher" sectionKey="organizations" filterKey="organizations" items={facets.organizations} />
         <FilterSection title="Jurisdiction" sectionKey="jurisdictions" filterKey="jurisdictions" items={facets.jurisdictions} />
         <SubjectSection items={facets.subjects} />
@@ -174,7 +174,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
         <FilterSection title="Keywords" sectionKey="keywords" filterKey="keywords" items={facets.keywords} />
       </div>
 
-      <div className="p-4 space-y-2">
+      <div className="mt-3 pt-3 space-y-2 border-t border-[color:var(--outline-variant)]">
         <button className="btn-discovery w-full" onClick={onApply}>Apply Filters</button>
         <button
           onClick={handleClearAll}
