@@ -545,7 +545,7 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          <div className={clsx('lg:col-span-3')}>
+          <div className="min-w-0">
             {activeFilterChips.length > 0 && (
               <div className="mb-6 flex flex-wrap gap-2">
                 {activeFilterChips.map((chip) => (
