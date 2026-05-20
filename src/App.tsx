@@ -486,7 +486,7 @@ export const App: React.FC = () => {
           <div className="mt-4 flex items-center gap-2">
             <button
               onClick={() => toggleFilters()}
-              className="btn-secondary text-sm"
+              className="btn-secondary text-sm lg:hidden"
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filters {activeFilterChips.length > 0 ? `(${activeFilterChips.length})` : ''}
