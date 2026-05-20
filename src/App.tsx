@@ -525,8 +525,8 @@ export const App: React.FC = () => {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
-          <aside className="hidden lg:block sticky top-24 shell-panel p-3 max-h-[calc(100vh-96px)] w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+          <aside className="hidden lg:block sticky top-24 shell-panel p-3 h-[calc(100vh-96px)] w-full overflow-hidden self-start">
             <FilterPanel facets={displayFacets} onApply={handleApplyFilters} />
           </aside>
 

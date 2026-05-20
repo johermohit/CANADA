@@ -151,7 +151,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden rounded-lg bg-[color:var(--surface-container-low)] p-3 min-h-0">
+    <div className="h-full flex min-h-0 flex-col overflow-hidden rounded-lg bg-[color:var(--surface-container-low)] p-3">
       <div className="flex items-center justify-between pb-3 border-b border-[color:var(--outline-variant)] flex-shrink-0">
         <h2 className="font-bold text-lg tracking-tight text-[color:var(--on-surface)]">Filter by</h2>
         {onClose && (
@@ -161,7 +161,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto mt-3 space-y-3 pr-4 min-h-0 scrollbar-stable">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden mt-3 space-y-3 pr-2 sm:pr-3 scrollbar-stable overscroll-contain">
         <FilterSection title="Publisher" sectionKey="organizations" filterKey="organizations" items={facets.organizations} />
         <FilterSection title="Jurisdiction" sectionKey="jurisdictions" filterKey="jurisdictions" items={facets.jurisdictions} />
         <SubjectSection items={facets.subjects} />
@@ -174,8 +174,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ facets, onClose, onApp
         <FilterSection title="Keywords" sectionKey="keywords" filterKey="keywords" items={facets.keywords} />
       </div>
 
-      <div className="mt-3 pt-3 space-y-2 border-t border-[color:var(--outline-variant)]">
-        <button className="btn-discovery w-full" onClick={onApply}>Apply Filters</button>
+      <div className="mt-3 pt-3 space-y-2 border-t border-[color:var(--outline-variant)] flex-shrink-0">
         <button
           onClick={handleClearAll}
           className="btn-secondary w-full"
